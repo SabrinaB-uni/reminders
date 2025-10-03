@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Reminders</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+
+    <header class="page-header">
+        <!-- Left section - Add New button -->
+        <div class="header-left">
+            <button onclick="toggleAddForm()" class="btn btn-primary" id="toggleBtn">Add New</button>
+        </div>
+
+        <!-- Center section - Title -->
+        <div class="header-center">
+            <h1>Manage Reminders</h1>
+        </div>
+
+        <!-- Right section - TV Display button -->
+        <div class="header-right">
+            <nav class="nav-links">
+                <a href="{{ url_for('tv_display') }}" class="btn btn-secondary">TV Display</a>
+            </nav>
+        </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <main class="main-content">
+
+        <div id="reminderForm" class="form-section" style="display: none;">
+            <div class="form-header">
+                <h2 id="formTitle">Add New Reminder</h2>
+                <button onclick="cancelForm()" class="btn btn-small btn-secondary">Cancel</button>
+            </div>
+
+            <form method="POST" class="reminder-form" id="mainForm">
+
+                <input type="hidden" name="action" id="formAction" value="add">
+                <input type="hidden" name="reminder_id" id="reminderId">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="date">Date *</label>
+                        <input type="date" id="date" name="date" required class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="time">Time</label>
+                        <input type="time" id="time" name="time" class="form-control">
+                        <small class="help-text">Leave empty for all-day</small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="title">Title *</label>
+                    <input type="text" id="title" name="title" required maxlength="255" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" rows="3" class="form-control"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="location">Location</label>
+                    <input type="text" id="location" name="location" maxlength="200" class="form-control">
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="submitBtn">Save Reminder</button>
+                    <button type="button" class="btn btn-secondary" onclick="cancelForm()">Cancel</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- UPDATED: Current Reminders Section -->
+        {% if current_reminders %}
+        <div class="reminders-list-section">
+            <div class="section-header">
+                <h2>Current Reminders</h2>
+                <div class="reminder-count">{{ current_reminders|length }} current</div>
+            </div>
+
+            <div class="reminders-grid">
+                {% for reminder in current_reminders %}
+                <div class="reminder-card-manage" data-date="{{ reminder.date }}">
+                    <div class="card-header">
+                        <div class="reminder-date">{{ reminder.date_display }}</div>
+                        <div class="reminder-time">{{ reminder.time_display }}</div>
+                    </div>
+
+                    <div class="card-content">
+                        <h3 class="reminder-title">{{ reminder.title }}</h3>
+                        {% if reminder.description %}
+                        <p class="reminder-description">{{ reminder.description }}</p>
+                        {% endif %}
+                        {% if reminder.location %}
+                        <p class="reminder-location"> {{ reminder.location }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="card-footer">
+                        <div class="badges">
+                            <!-- You can add priority/category badges here if needed -->
+                        </div>
+
+                        <div class="actions">
+                            <button onclick="editReminder({{ reminder.id }})"
+                                    class="btn btn-small btn-edit">Edit</button>
+                            <a href="{{ url_for('delete_reminder', reminder_id=reminder.id) }}"
+                               class="btn btn-small btn-delete"
+                               onclick="return confirm('Delete this reminder?')">Delete</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- UPDATED: Old Reminders Section -->
+        {% if old_reminders %}
+        <div class="reminders-list-section old-reminders-section">
+            <div class="section-header">
+                <h2>Old Reminders</h2>
+                <div class="reminder-count">{{ old_reminders|length }} past</div>
+            </div>
+
+            <div class="reminders-grid">
+                {% for reminder in old_reminders %}
+                <div class="reminder-card-manage" data-date="{{ reminder.date }}">
+                    <div class="card-header">
+                        <div class="reminder-date">{{ reminder.date_display }}</div>
+                        <div class="reminder-time">{{ reminder.time_display }}</div>
+                    </div>
+
+                    <div class="card-content">
+                        <h3 class="reminder-title">{{ reminder.title }}</h3>
+                        {% if reminder.description %}
+                        <p class="reminder-description">{{ reminder.description }}</p>
+                        {% endif %}
+                        {% if reminder.location %}
+                        <p class="reminder-location"> {{ reminder.location }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="card-footer">
+                        <div class="badges">
+                            <!-- You can add priority/category badges here if needed -->
+                        </div>
+
+                        <div class="actions">
+                            <button onclick="editReminder({{ reminder.id }})"
+                                    class="btn btn-small btn-edit">Edit</button>
+                            <a href="{{ url_for('delete_reminder', reminder_id=reminder.id) }}"
+                               class="btn btn-small btn-delete"
+                               onclick="return confirm('Delete this reminder?')">Delete</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- UPDATED: No Data Message -->
+        {% if not current_reminders and not old_reminders %}
+        <div class="reminders-list-section">
+            <div class="no-data">
+                <h3>No reminders found</h3>
+                <p>Click "Add New" to create your first reminder.</p>
+                <button onclick="toggleAddForm()" class="btn btn-primary">Add Your First Reminder</button>
+            </div>
+        </div>
+        {% endif %}
+
+    </main>
+</div>
+
+<script>
+    // Function to categorize reminders by date
+    function categorizeRemindersByDate() {
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+
+        const cards = document.querySelectorAll('.reminder-card-manage');
+
+        cards.forEach(card => {
+            const dateStr = card.getAttribute('data-date');
+            const reminderDate = new Date(dateStr + 'T00:00:00');
+
+            // Remove existing date classes
+            card.classList.remove('date-today', 'date-tomorrow', 'date-future', 'date-past');
+
+            // Compare dates
+            if (reminderDate.toDateString() === today.toDateString()) {
+                card.classList.add('date-today');
+            } else if (reminderDate.toDateString() === tomorrow.toDateString()) {
+                card.classList.add('date-tomorrow');
+            } else if (reminderDate > tomorrow) {
+                // All future dates (beyond tomorrow)
+                card.classList.add('date-future');
+            } else if (reminderDate < today) {
+                // Past dates
+                card.classList.add('date-past');
+            }
+        });
+    }
+
+    function toggleAddForm() {
+        const form = document.getElementById('reminderForm');
+        const toggleBtn = document.getElementById('toggleBtn');
+
+        if (form.style.display === 'none' || form.style.display === '') {
+            showForm('add');
+            toggleBtn.textContent = 'Cancel';
+            toggleBtn.className = 'btn btn-secondary';
+        } else {
+            hideForm();
+            toggleBtn.textContent = 'Add New';
+            toggleBtn.className = 'btn btn-primary';
+        }
+    }
+
+    function showForm(mode, reminderData = null) {
+        document.getElementById('reminderForm').style.display = 'block';
+
+        if (mode === 'add') {
+            document.getElementById('formTitle').textContent = 'Add New Reminder';
+            document.getElementById('formAction').value = 'add';
+            document.getElementById('submitBtn').textContent = 'Save Reminder';
+
+            document.getElementById('mainForm').reset();
+            document.getElementById('reminderId').value = '';
+
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('date').value = today;
+
+        } else if (mode === 'edit' && reminderData) {
+            document.getElementById('formTitle').textContent = 'Edit Reminder';
+            document.getElementById('formAction').value = 'edit';
+            document.getElementById('submitBtn').textContent = 'Update Reminder';
+
+            document.getElementById('reminderId').value = reminderData.id;
+            document.getElementById('date').value = reminderData.date;
+            document.getElementById('time').value = reminderData.time || '';
+            document.getElementById('title').value = reminderData.title;
+            document.getElementById('description').value = reminderData.description || '';
+            document.getElementById('location').value = reminderData.location || '';
+        }
+
+        document.getElementById('reminderForm').scrollIntoView({
+            behavior: 'smooth'
+        });
+    }
+
+    function hideForm() {
+        document.getElementById('reminderForm').style.display = 'none';
+
+        const toggleBtn = document.getElementById('toggleBtn');
+        toggleBtn.textContent = 'Add New';
+        toggleBtn.className = 'btn btn-primary';
+    }
+
+    function cancelForm() {
+        hideForm();
+    }
+
+    function editReminder(reminderId) {
+        console.log('Loading reminder data...');
+
+        fetch(`/get_reminder/${reminderId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                showForm('edit', data);
+
+                const toggleBtn = document.getElementById('toggleBtn');
+                toggleBtn.textContent = 'Cancel';
+                toggleBtn.className = 'btn btn-secondary';
+            })
+            .catch(error => {
+                console.error('Error loading reminder:', error);
+                alert('Error loading reminder data. Please try again.');
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Categorize reminders by date when page loads
+        categorizeRemindersByDate();
+
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                alert.style.opacity = '0';
+                alert.style.transition = 'opacity 0.5s ease';
+
+                setTimeout(() => {
+                    if (alert.parentNode) {
+                        alert.parentNode.removeChild(alert);
+                    }
+                }, 500);
+            }, 5000);
+        });
+    });
+</script>
+</body>
+</html>

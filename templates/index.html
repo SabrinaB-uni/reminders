@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="300">
+
+    <title>Reminders</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Fixed viewport - no scrolling */
+        body {
+            font-family: Arial, sans-serif !important;
+            background-color: #ffffff;
+            color: #000000;
+            font-size: 45px !important;
+            line-height: 1.2;
+            height: 100vh;
+            overflow: hidden;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* MODIFIED: Single line header with all content */
+        .tv-top-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #000000;
+            flex-shrink: 0;
+        }
+
+        /* MODIFIED: Title on the left */
+        .main-title {
+            font-size: 65px !important;
+            font-weight: bold;
+            color: #000000;
+            flex-shrink: 0;
+        }
+
+        /* ADDED: Center section with date */
+        .center-section {
+            flex-grow: 1;
+            text-align: center;
+        }
+
+        .current-date {
+            font-size: 55px !important;
+            font-weight: bold !important;
+            color: #000000;
+        }
+
+        /* MODIFIED: Right section with just time */
+        .time-section {
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .current-time {
+            font-size: 65px !important;
+            font-weight: bold !important;
+            color: #000000;
+        }
+
+        /* Main content area - fills remaining space */
+        .tv-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            overflow: hidden;
+        }
+
+        /* Screen container for pagination */
+        .screen {
+            display: none;
+            height: 100%;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Compact day sections */
+        .day-section {
+            margin-bottom: 15px;
+            flex-shrink: 0;
+        }
+
+        /* Color-coded section headers */
+        .day-section.today h2 {
+            font-size: 36px !important;
+            font-weight: bold;
+            color: #ffffff;
+            background-color: #006400; /* Dark green for today */
+            margin-bottom: 8px;
+            text-align: center;
+            padding: 8px;
+            border-radius: 5px;
+        }
+
+        .day-section.tomorrow h2 {
+            font-size: 36px !important;
+            font-weight: bold;
+            color: #ffffff;
+            background-color: #000080; /* Dark blue for tomorrow */
+            margin-bottom: 8px;
+            text-align: center;
+            padding: 8px;
+            border-radius: 5px;
+        }
+
+        /* Compact reminders list */
+        .reminders-list {
+            margin-bottom: 10px;
+        }
+
+        /* Single line reminders - time, date, and title */
+        .reminder-line {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+            padding: 5px 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            border-left: 4px solid transparent;
+        }
+
+        /* Today reminders have green left border */
+        .reminder-line.today {
+            border-left-color: #006400;
+        }
+
+        /* Tomorrow reminders have blue left border */
+        .reminder-line.tomorrow {
+            border-left-color: #000080;
+        }
+
+        /* Time display - compact */
+        .reminder-time {
+            font-size: 75px !important;
+            font-weight: bold;
+            margin-right: 15px;
+            min-width: 350px;
+            color: #000000;
+            flex-shrink: 0;
+        }
+
+        /* Date display on same line */
+        .reminder-date {
+            font-size: 75px !important;
+            font-weight: normal;
+            margin-right: 5px;
+            min-width: 70px;
+            color: #666666;
+            flex-shrink: 0;
+        }
+
+        /* Title display - takes remaining space */
+        .reminder-title {
+            font-size: 75px !important;
+            font-weight: normal;
+            color: #000000;
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Compact no reminders message */
+        .no-reminders-day {
+            font-size: 30px !important;
+            color: #888888;
+            font-style: italic;
+            text-align: center;
+            padding: 10px;
+        }
+
+        /* Small manage button in bottom corner */
+        .manage-button {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background-color: #f0f0f0;
+            color: #666666;
+            border: 1px solid #cccccc;
+            border-radius: 3px;
+            padding: 5px 10px;
+            font-size: 12px;
+            text-decoration: none;
+            opacity: 0.7;
+            z-index: 1000;
+        }
+
+        .manage-button:hover {
+            opacity: 1;
+            background-color: #e0e0e0;
+        }
+
+        /* Pagination indicator */
+        .pagination-indicator {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 14px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .pagination-indicator.show {
+            display: block;
+        }
+
+        }
+
+        .progress-bar.show {
+            display: block;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="tv-container">
+
+        <!-- MODIFIED: Single line header with title, date, and time -->
+        <div class="tv-top-section">
+            <div class="main-title">Reminders</div>
+
+            <div class="center-section">
+                {% if time_info %}
+                    <div class="current-date">{{ time_info.display_date }}</div>
+                {% endif %}
+            </div>
+
+            <div class="time-section">
+                {% if time_info %}
+                    <div class="current-time">{{ time_info.current_time }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Main content with pagination screens -->
+        <main class="tv-content">
+
+            {% if pagination_info %}
+                {% for screen_data in pagination_info.screens %}
+                    <!-- Each screen for pagination -->
+                    <div class="screen {% if loop.index == 1 %}active{% endif %}" data-screen="{{ loop.index }}">
+
+                        <!-- TODAY SECTION -->
+                        {% if screen_data.today_reminders %}
+                            <div class="day-section today">
+                                <h2>Today</h2>
+
+                                <div class="reminders-list">
+                                    {% for reminder in screen_data.today_reminders %}
+                                        <!-- Single line with time, date, and title -->
+                                        <div class="reminder-line today">
+                                            <div class="reminder-time">{{ reminder.time_display }}</div>
+                                            <div class="reminder-date">{{ reminder.date_display_short }}</div>
+                                            <div class="reminder-title">{{ reminder.title }}</div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- TOMORROW SECTION -->
+                        {% if screen_data.tomorrow_reminders %}
+                            <div class="day-section tomorrow">
+                                <h2>Tomorrow</h2>
+
+                                <div class="reminders-list">
+                                    {% for reminder in screen_data.tomorrow_reminders %}
+                                        <!-- Single line with time, date, and title -->
+                                        <div class="reminder-line tomorrow">
+                                            <div class="reminder-time">{{ reminder.time_display }}</div>
+                                            <div class="reminder-date">{{ reminder.date_display_short }}</div>
+                                            <div class="reminder-title">{{ reminder.title }}</div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Show no reminders message only on first screen if both are empty -->
+                        {% if loop.index == 1 and not screen_data.today_reminders and not screen_data.tomorrow_reminders %}
+                            <div class="day-section today">
+                                <h2>Today</h2>
+                                <div class="no-reminders-day">
+                                    <p>No reminders for today</p>
+                                </div>
+                            </div>
+                            <div class="day-section tomorrow">
+                                <h2>Tomorrow</h2>
+                                <div class="no-reminders-day">
+                                    <p>No reminders for tomorrow</p>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+        </main>
+
+        <!-- Small manage button in bottom right corner -->
+        <a href="{{ url_for('manage_reminders') }}" class="manage-button">Manage</a>
+
+        <!-- Pagination indicator (only show if multiple screens) -->
+        {% if pagination_info.needs_pagination %}
+            <div class="pagination-indicator show">
+                <span id="current-screen">1</span> / {{ pagination_info.total_screens }}
+            </div>
+
+            <!-- Progress bar for timing -->
+            <div class="progress-bar show" id="progress-bar"></div>
+        {% endif %}
+    </div>
+
+    <!-- JavaScript for pagination -->
+    <script>
+        // Pagination functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const needsPagination = {{ pagination_info.needs_pagination|tojson }};
+            const totalScreens = {{ pagination_info.total_screens }};
+
+            if (needsPagination && totalScreens > 1) {
+                let currentScreen = 1;
+                const screenDuration = 15000; // 15 seconds per screen
+                const screens = document.querySelectorAll('.screen');
+                const currentScreenElement = document.getElementById('current-screen');
+                const progressBar = document.getElementById('progress-bar');
+
+                let progressInterval;
+                let screenTimeout;
+
+                function showScreen(screenNumber) {
+                    // Hide all screens
+                    screens.forEach(screen => {
+                        screen.classList.remove('active');
+                    });
+
+                    // Show current screen
+                    const targetScreen = document.querySelector(`[data-screen="${screenNumber}"]`);
+                    if (targetScreen) {
+                        targetScreen.classList.add('active');
+                    }
+
+                    // Update indicator
+                    if (currentScreenElement) {
+                        currentScreenElement.textContent = screenNumber;
+                    }
+
+                    // Reset and start progress bar
+                    if (progressBar) {
+                        progressBar.style.width = '0%';
+
+                        // Clear existing intervals
+                        if (progressInterval) clearInterval(progressInterval);
+                        if (screenTimeout) clearTimeout(screenTimeout);
+
+                        // Animate progress bar
+                        let progress = 0;
+                        const progressStep = 150 / (screenDuration / 1500); // Update every 100ms
+
+                        progressInterval = setInterval(() => {
+                            progress += progressStep;
+                            progressBar.style.width = Math.min(progress, 150) + '%';
+
+                            if (progress >= 150) {
+                                clearInterval(progressInterval);
+                            }
+                        }, 100);
+
+                        // Set timeout for next screen
+                        screenTimeout = setTimeout(() => {
+                            currentScreen = currentScreen >= totalScreens ? 1 : currentScreen + 1;
+                            showScreen(currentScreen);
+                        }, screenDuration);
+                    }
+                }
+
+                // Start pagination cycle
+                showScreen(1);
+
+                // Optional manual navigation with keyboard
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'ArrowRight' || e.key === ' ') {
+                        e.preventDefault();
+                        currentScreen = currentScreen >= totalScreens ? 1 : currentScreen + 1;
+                        showScreen(currentScreen);
+                    } else if (e.key === 'ArrowLeft') {
+                        e.preventDefault();
+                        currentScreen = currentScreen <= 1 ? totalScreens : currentScreen - 1;
+                        showScreen(currentScreen);
+                    }
+                });
+            }
+        });
+    </script>
+
+</body>
+</html>

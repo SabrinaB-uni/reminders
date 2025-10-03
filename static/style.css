@@ -1,0 +1,550 @@
+/* CSS management page */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header with three distinct sections */
+.page-header {
+    display: flex;
+    align-items: center;
+    background: white;
+    padding: 20px 30px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    position: relative;
+}
+
+/* Left section - Add New button */
+.header-left {
+    flex: 1;
+    display: flex;
+    justify-content: flex-start;
+}
+
+/* Center section - Title */
+.header-center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
+
+.page-header h1 {
+    color: #333;
+    font-size: 28px;
+    margin: 0;
+}
+
+/* Right section - TV Display button */
+.header-right {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.nav-links {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.4);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+.btn-small {
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
+.btn-edit {
+    background: #ffc107;
+    color: #000;
+}
+
+.btn-delete {
+    background: #dc3545;
+    color: white;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+.alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+.alert-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.form-section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.form-row {
+    display: flex;
+    gap: 20px;
+}
+
+.form-group {
+    flex: 1;
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-control:focus {
+    border-color: #007bff;
+    outline: none;
+}
+
+.help-text {
+    font-size: 12px;
+    color: #666;
+    margin-top: 3px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.reminders-list-section {
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+.section-header h2 {
+    font-size: 24px;
+    color: #333;
+}
+
+.reminder-count {
+    background: #e9ecef;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    color: #495057;
+    font-weight: 500;
+}
+
+/* Perfect 3x3 Block Grid Layout */
+.reminders-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+    margin-bottom: 50px;
+    padding: 20px 0;
+}
+
+/* Base Card Styling */
+.reminder-card-manage {
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 25px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Default top border for unmatched dates */
+.reminder-card-manage::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #6c757d, #495057);
+}
+
+/* Today - Green */
+.reminder-card-manage.date-today::before {
+    background: linear-gradient(90deg, #28a745, #1e7e34);
+}
+
+.reminder-card-manage.date-today:hover {
+    border-color: #28a745;
+    box-shadow: 0 12px 30px rgba(40, 167, 69, 0.2);
+}
+
+/* Tomorrow - Dark Blue */
+.reminder-card-manage.date-tomorrow::before {
+    background: linear-gradient(90deg, #1a237e, #0d47a1);
+}
+
+.reminder-card-manage.date-tomorrow:hover {
+    border-color: #1a237e;
+    box-shadow: 0 12px 30px rgba(26, 35, 126, 0.2);
+}
+
+/* All Future Dates (beyond tomorrow) - Yellow */
+.reminder-card-manage.date-future::before {
+    background: linear-gradient(90deg, #ffc107, #e0a800);
+}
+
+.reminder-card-manage.date-future:hover {
+    border-color: #ffc107;
+    box-shadow: 0 12px 30px rgba(255, 193, 7, 0.2);
+}
+
+/* Past Dates - Gray */
+.reminder-card-manage.date-past::before {
+    background: linear-gradient(90deg, #6c757d, #495057);
+}
+
+.reminder-card-manage.date-past:hover {
+    border-color: #6c757d;
+    box-shadow: 0 12px 30px rgba(108, 117, 125, 0.2);
+}
+
+.reminder-card-manage:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+    font-size: 13px;
+    color: #6c757d;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.card-content {
+    flex-grow: 1;
+    margin-bottom: 25px;
+}
+
+.reminder-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: #2c3e50;
+    line-height: 1.4;
+}
+
+.reminder-description {
+    font-size: 14px;
+    color: #6c757d;
+    margin-bottom: 10px;
+    line-height: 1.6;
+}
+
+.reminder-location {
+    font-size: 12px;
+    color: #adb5bd;
+    font-style: italic;
+    background: #f8f9fa;
+    padding: 5px 10px;
+    border-radius: 15px;
+    display: inline-block;
+}
+
+.card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 20px;
+    border-top: 1px solid #f1f3f4;
+    margin-top: auto;
+}
+
+.badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+}
+
+.actions .btn {
+    padding: 8px 16px;
+    font-size: 12px;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+/* Grid sections for multiple 3x3 blocks */
+.grid-section {
+    margin-bottom: 60px;
+}
+
+.grid-section:not(:last-child) {
+    border-bottom: 3px solid #f1f3f4;
+    padding-bottom: 50px;
+}
+
+.grid-section-title {
+    font-size: 18px;
+    color: #495057;
+    margin-bottom: 25px;
+    padding: 10px 0;
+    border-left: 4px solid #007bff;
+    padding-left: 15px;
+    font-weight: 600;
+}
+
+.no-data {
+    text-align: center;
+    padding: 80px 20px;
+    color: #6c757d;
+}
+
+.no-data h3 {
+    margin-bottom: 20px;
+    color: #495057;
+    font-size: 22px;
+}
+
+.no-data p {
+    margin-bottom: 30px;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+    .container {
+        max-width: 1000px;
+    }
+
+    .reminders-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 25px;
+    }
+}
+
+@media (max-width: 768px) {
+    .page-header {
+        flex-direction: column;
+        gap: 20px;
+        padding: 20px;
+    }
+
+    .header-left,
+    .header-center,
+    .header-right {
+        flex: none;
+        width: 100%;
+    }
+
+    .header-left {
+        order: 1;
+    }
+
+    .header-center {
+        order: 2;
+    }
+
+    .header-right {
+        order: 3;
+    }
+
+    .form-row {
+        flex-direction: column;
+    }
+
+    .reminders-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        padding: 10px
+                padding: 10px 0;
+    }
+
+    .card-footer {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+
+    .reminder-card-manage {
+        padding: 20px;
+        min-height: 180px;
+    }
+
+    .reminders-list-section {
+        padding: 25px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 15px;
+    }
+
+    .reminders-list-section {
+        padding: 20px;
+    }
+
+    .reminder-card-manage {
+        padding: 18px;
+        min-height: auto;
+    }
+
+    .reminders-grid {
+        gap: 15px;
+    }
+}
+/* ... your existing CSS code ... */
+
+@media (max-width: 480px) {
+    .container {
+        padding: 15px;
+    }
+
+    .reminders-list-section {
+        padding: 20px;
+    }
+
+    .reminder-card-manage {
+        padding: 18px;
+        min-height: auto;
+    }
+
+    .reminders-grid {
+        gap: 15px;
+    }
+}
+
+/* ADD THE NEW CSS HERE - Old reminders section styling */
+.old-reminders-section {
+    margin-top: 40px;
+    border-top: 3px solid #e9ecef;
+    padding-top: 40px;
+}
+
+.old-reminders-section .section-header h2 {
+    color: #6c757d;
+}
+
+.old-reminders-section .reminder-count {
+    background: #f8f9fa;
+    color: #6c757d;
+}
+
+/* Slightly fade old reminder cards */
+.old-reminders-section .reminder-card-manage {
+    opacity: 0.85;
+}
+
+.old-reminders-section .reminder-card-manage:hover {
+    opacity: 1;
+}

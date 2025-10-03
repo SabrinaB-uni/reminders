@@ -1,0 +1,379 @@
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+import sqlite3
+from datetime import datetime, timedelta
+import math
+
+app = Flask(__name__)
+
+app.secret_key = 'your-secret-key-change-this-in-production'
+
+DATABASE_NAME = 'reminders.db'
+
+
+def get_db_connection():
+    try:
+        connection = sqlite3.connect(DATABASE_NAME)
+        connection.row_factory = sqlite3.Row
+        return connection
+    except sqlite3.Error as error:
+        print(f"Database connection error: {error}")
+        return None
+
+
+def parse_time_safely(time_str):
+    """
+    Safely parse time string in various formats
+    """
+    if not time_str:
+        return None
+
+    try:
+        # Try HH:MM:SS format first
+        time_obj = datetime.strptime(time_str, '%H:%M:%S').time()
+        return time_obj
+    except ValueError:
+        try:
+            # Try HH:MM format (from HTML input)
+            time_obj = datetime.strptime(time_str, '%H:%M').time()
+            return time_obj
+        except ValueError:
+            # If both fail, return None
+            return None
+
+
+def format_time_for_display(time_str):
+    """
+    Format time string for display
+    """
+    time_obj = parse_time_safely(time_str)
+    if time_obj:
+        return time_obj.strftime('%I:%M %p')
+    else:
+        return 'All Day'
+
+
+def get_reminders_for_date(date_str):
+    connection = get_db_connection()
+    if not connection:
+        return []
+
+    try:
+        cursor = connection.cursor()
+        cursor.execute('''
+        SELECT * FROM reminders 
+        WHERE date = ? 
+        ORDER BY 
+            CASE WHEN time IS NULL THEN '23:59:59' ELSE time END
+        ''', (date_str,))
+
+        # Format reminders for display
+        reminders = []
+        for row in cursor.fetchall():
+            reminder = dict(row)
+
+            # Format time for display
+            reminder['time_display'] = format_time_for_display(reminder['time'])
+
+            reminders.append(reminder)
+
+        return reminders
+
+    except sqlite3.Error as error:
+        print(f"Error fetching reminders: {error}")
+        return []
+    finally:
+        connection.close()
+
+
+def get_all_reminders_organized():
+    """
+    Gets all reminders from database organized into current and old sections
+    """
+    connection = get_db_connection()
+    if not connection:
+        return {'current_reminders': [], 'old_reminders': []}
+
+    try:
+        cursor = connection.cursor()
+        cursor.execute('''
+        SELECT * FROM reminders 
+        ORDER BY date DESC, 
+            CASE WHEN time IS NULL THEN '23:59:59' ELSE time END
+        ''')
+
+        today = datetime.now().date()
+        current_reminders = []
+        old_reminders = []
+
+        # Format reminders for display and categorize
+        for row in cursor.fetchall():
+            reminder = dict(row)
+
+            # Parse the reminder date
+            reminder_date = datetime.strptime(reminder['date'], '%Y-%m-%d').date()
+
+            # Format time for display using the safe function
+            reminder['time_display'] = format_time_for_display(reminder['time'])
+
+            # Format date for display
+            date_obj = datetime.strptime(reminder['date'], '%Y-%m-%d')
+            reminder['date_display'] = date_obj.strftime('%a, %b %d')
+
+            # Categorize reminders
+            if reminder_date >= today:
+                current_reminders.append(reminder)
+            else:
+                old_reminders.append(reminder)
+
+        # Sort current reminders by date ASC, then by time
+        current_reminders.sort(key=lambda x: (x['date'], x['time'] or '23:59:59'))
+
+        # Sort old reminders by date DESC (most recent first), then by time
+        old_reminders.sort(key=lambda x: (x['date'], x['time'] or '23:59:59'), reverse=True)
+
+        return {
+            'current_reminders': current_reminders,
+            'old_reminders': old_reminders
+        }
+
+    except sqlite3.Error as error:
+        print(f"Error fetching all reminders: {error}")
+        return {'current_reminders': [], 'old_reminders': []}
+    finally:
+        connection.close()
+
+
+# Function to calculate pagination info
+def calculate_pagination_info(today_reminders, tomorrow_reminders, max_per_screen=7):
+    """
+    Calculate how many screens are needed and organize reminders accordingly
+    """
+    total_reminders = len(today_reminders) + len(tomorrow_reminders)
+
+    if total_reminders <= max_per_screen:
+        # All fit on one screen
+        return {
+            'needs_pagination': False,
+            'total_screens': 1,
+            'screens': [{
+                'today_reminders': today_reminders,
+                'tomorrow_reminders': tomorrow_reminders
+            }]
+        }
+
+    # Need pagination
+    screens = []
+    remaining_today = today_reminders[:]
+    remaining_tomorrow = tomorrow_reminders[:]
+
+    while remaining_today or remaining_tomorrow:
+        screen_today = []
+        screen_tomorrow = []
+        screen_count = 0
+
+        # Fill screen with today's reminders first
+        while remaining_today and screen_count < max_per_screen:
+            screen_today.append(remaining_today.pop(0))
+            screen_count += 1
+
+        # Fill remaining space with tomorrow's reminders
+        while remaining_tomorrow and screen_count < max_per_screen:
+            screen_tomorrow.append(remaining_tomorrow.pop(0))
+            screen_count += 1
+
+        screens.append({
+            'today_reminders': screen_today,
+            'tomorrow_reminders': screen_tomorrow
+        })
+
+    return {
+        'needs_pagination': True,
+        'total_screens': len(screens),
+        'screens': screens
+    }
+
+
+@app.route('/')
+def manage_reminders_root():
+    """
+    Root route now goes to manage page
+    """
+    return redirect(url_for('manage_reminders'))
+
+
+@app.route('/display')
+def tv_display():
+    """
+    TV display moved to /display route
+    """
+    # Get current date and calculate tomorrow
+    today = datetime.now()
+    tomorrow = today + timedelta(days=1)
+
+    today_str = today.strftime('%Y-%m-%d')
+    tomorrow_str = tomorrow.strftime('%Y-%m-%d')
+
+    # Get reminders for both days
+    today_reminders = get_reminders_for_date(today_str)
+    tomorrow_reminders = get_reminders_for_date(tomorrow_str)
+
+    # Calculate pagination info
+    pagination_info = calculate_pagination_info(today_reminders, tomorrow_reminders, max_per_screen=7)
+
+    # Create time information dictionary
+    time_info = {
+        'display_date': today.strftime('%A, %B %d, %Y'),
+        'current_time': today.strftime('%I:%M %p')
+    }
+
+    # Pass pagination info to template
+    return render_template('index.html',
+                           time_info=time_info,
+                           pagination_info=pagination_info)
+
+
+@app.route('/manage', methods=['GET', 'POST'])
+def manage_reminders():
+    """
+    Management page with organized reminders (current vs old)
+    """
+    if request.method == 'POST':
+        # Get action type (add or edit)
+        action = request.form.get('action', 'add')
+
+        # Get form data
+        reminder_id = request.form.get('reminder_id')  # Only for edit
+        date = request.form.get('date')
+        time = request.form.get('time')
+        title = request.form.get('title')
+        description = request.form.get('description')
+        location = request.form.get('location')
+
+        # Basic validation
+        if not date or not title:
+            flash('Date and title are required!', 'error')
+            return redirect(url_for('manage_reminders'))
+
+        # Convert empty strings to None for database
+        time = time if time else None
+        description = description if description else None
+        location = location if location else None
+
+        # Convert time to HH:MM:SS format if provided
+        if time:
+            try:
+                # Parse the time and reformat to include seconds
+                time_obj = datetime.strptime(time, '%H:%M').time()
+                time = time_obj.strftime('%H:%M:%S')
+            except ValueError:
+                # If it's already in HH:MM:SS format, keep it
+                pass
+
+        # Process based on action
+        connection = get_db_connection()
+        if connection:
+            try:
+                cursor = connection.cursor()
+
+                if action == 'edit' and reminder_id:
+                    # Update existing reminder
+                    cursor.execute('''
+                    UPDATE reminders 
+                    SET date=?, time=?, title=?, description=?, location=?
+                    WHERE id=?
+                    ''', (date, time, title, description, location, reminder_id))
+
+                    flash('Reminder updated successfully!', 'success')
+
+                else:
+                    # Add new reminder
+                    cursor.execute('''
+                    INSERT INTO reminders (date, time, title, description, location)
+                    VALUES (?, ?, ?, ?, ?)
+                    ''', (date, time, title, description, location))
+
+                    flash('Reminder added successfully!', 'success')
+
+                connection.commit()
+
+            except sqlite3.Error as error:
+                flash(f'Database error: {error}', 'error')
+            finally:
+                connection.close()
+
+        return redirect(url_for('manage_reminders'))
+
+    # GET request - show management interface with organized reminders
+    reminders_data = get_all_reminders_organized()
+    return render_template('manage.html',
+                           current_reminders=reminders_data['current_reminders'],
+                           old_reminders=reminders_data['old_reminders'])
+
+
+@app.route('/get_reminder/<int:reminder_id>')
+def get_reminder(reminder_id):
+    """
+    API endpoint to get reminder data for editing
+    """
+    connection = get_db_connection()
+    if not connection:
+        return jsonify({'error': 'Database connection failed'}), 500
+
+    try:
+        cursor = connection.cursor()
+        cursor.execute('SELECT * FROM reminders WHERE id = ?', (reminder_id,))
+        reminder = cursor.fetchone()
+
+        if reminder:
+            reminder_dict = dict(reminder)
+
+            # Convert time format for HTML input (HH:MM:SS to HH:MM)
+            if reminder_dict['time']:
+                time_obj = parse_time_safely(reminder_dict['time'])
+                if time_obj:
+                    reminder_dict['time'] = time_obj.strftime('%H:%M')
+
+            return jsonify(reminder_dict)
+        else:
+            return jsonify({'error': 'Reminder not found'}), 404
+
+    except sqlite3.Error as error:
+        return jsonify({'error': str(error)}), 500
+    finally:
+        connection.close()
+
+
+@app.route('/delete/<int:reminder_id>')
+def delete_reminder(reminder_id):
+    """
+    Delete a reminder
+    """
+    connection = get_db_connection()
+    if not connection:
+        flash('Database connection failed', 'error')
+        return redirect(url_for('manage_reminders'))
+
+    try:
+        cursor = connection.cursor()
+        cursor.execute('DELETE FROM reminders WHERE id = ?', (reminder_id,))
+        connection.commit()
+
+        if cursor.rowcount > 0:
+            flash('Reminder deleted successfully!', 'success')
+        else:
+            flash('Reminder not found!', 'error')
+
+    except sqlite3.Error as error:
+        flash(f'Database error: {error}', 'error')
+    finally:
+        connection.close()
+
+    return redirect(url_for('manage_reminders'))
+
+
+if __name__ == '__main__':
+    print("Starting TV Reminders System...")
+    print("Management (Default): http://localhost:5000")
+    print("TV Display: http://localhost:5000/display")
+    print("Management: http://localhost:5000/manage")
+    app.run(debug=True, host='0.0.0.0', port=5000)
