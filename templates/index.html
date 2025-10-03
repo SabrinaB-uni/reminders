@@ -14,7 +14,6 @@
             box-sizing: border-box;
         }
 
-        /* Fixed viewport - no scrolling */
         body {
             font-family: Arial, sans-serif !important;
             background-color: #ffffff;
@@ -28,7 +27,6 @@
             flex-direction: column;
         }
 
-        /* MODIFIED: Single line header with all content */
         .tv-top-section {
             display: flex;
             justify-content: space-between;
@@ -39,7 +37,6 @@
             flex-shrink: 0;
         }
 
-        /* MODIFIED: Title on the left */
         .main-title {
             font-size: 65px !important;
             font-weight: bold;
@@ -47,7 +44,6 @@
             flex-shrink: 0;
         }
 
-        /* ADDED: Center section with date */
         .center-section {
             flex-grow: 1;
             text-align: center;
@@ -59,7 +55,6 @@
             color: #000000;
         }
 
-        /* MODIFIED: Right section with just time */
         .time-section {
             text-align: right;
             flex-shrink: 0;
@@ -71,7 +66,6 @@
             color: #000000;
         }
 
-        /* Main content area - fills remaining space */
         .tv-content {
             flex-grow: 1;
             display: flex;
@@ -80,7 +74,6 @@
             overflow: hidden;
         }
 
-        /* Screen container for pagination */
         .screen {
             display: none;
             height: 100%;
@@ -97,18 +90,16 @@
             to { opacity: 1; }
         }
 
-        /* Compact day sections */
         .day-section {
             margin-bottom: 15px;
             flex-shrink: 0;
         }
 
-        /* Color-coded section headers */
         .day-section.today h2 {
             font-size: 36px !important;
             font-weight: bold;
             color: #ffffff;
-            background-color: #006400; /* Dark green for today */
+            background-color: #006400;
             margin-bottom: 8px;
             text-align: center;
             padding: 8px;
@@ -119,19 +110,17 @@
             font-size: 36px !important;
             font-weight: bold;
             color: #ffffff;
-            background-color: #000080; /* Dark blue for tomorrow */
+            background-color: #000080;
             margin-bottom: 8px;
             text-align: center;
             padding: 8px;
             border-radius: 5px;
         }
 
-        /* Compact reminders list */
         .reminders-list {
             margin-bottom: 10px;
         }
 
-        /* Single line reminders - time, date, and title */
         .reminder-line {
             display: flex;
             align-items: center;
@@ -142,17 +131,14 @@
             border-left: 4px solid transparent;
         }
 
-        /* Today reminders have green left border */
         .reminder-line.today {
             border-left-color: #006400;
         }
 
-        /* Tomorrow reminders have blue left border */
         .reminder-line.tomorrow {
             border-left-color: #000080;
         }
 
-        /* Time display - compact */
         .reminder-time {
             font-size: 75px !important;
             font-weight: bold;
@@ -162,7 +148,6 @@
             flex-shrink: 0;
         }
 
-        /* Date display on same line */
         .reminder-date {
             font-size: 75px !important;
             font-weight: normal;
@@ -172,7 +157,6 @@
             flex-shrink: 0;
         }
 
-        /* Title display - takes remaining space */
         .reminder-title {
             font-size: 75px !important;
             font-weight: normal;
@@ -183,7 +167,6 @@
             text-overflow: ellipsis;
         }
 
-        /* Compact no reminders message */
         .no-reminders-day {
             font-size: 30px !important;
             color: #888888;
@@ -192,7 +175,6 @@
             padding: 10px;
         }
 
-        /* Small manage button in bottom corner */
         .manage-button {
             position: fixed;
             bottom: 10px;
@@ -213,7 +195,6 @@
             background-color: #e0e0e0;
         }
 
-        /* Pagination indicator */
         .pagination-indicator {
             position: fixed;
             bottom: 10px;
@@ -231,20 +212,12 @@
         .pagination-indicator.show {
             display: block;
         }
-
-        }
-
-        .progress-bar.show {
-            display: block;
-        }
-
     </style>
 </head>
 <body>
 
     <div class="tv-container">
 
-        <!-- MODIFIED: Single line header with title, date, and time -->
         <div class="tv-top-section">
             <div class="main-title">Reminders</div>
 
@@ -261,25 +234,20 @@
             </div>
         </div>
 
-        <!-- Main content with pagination screens -->
         <main class="tv-content">
 
             {% if pagination_info %}
                 {% for screen_data in pagination_info.screens %}
-                    <!-- Each screen for pagination -->
                     <div class="screen {% if loop.index == 1 %}active{% endif %}" data-screen="{{ loop.index }}">
 
-                        <!-- TODAY SECTION -->
                         {% if screen_data.today_reminders %}
                             <div class="day-section today">
                                 <h2>Today</h2>
 
                                 <div class="reminders-list">
                                     {% for reminder in screen_data.today_reminders %}
-                                        <!-- Single line with time, date, and title -->
                                         <div class="reminder-line today">
                                             <div class="reminder-time">{{ reminder.time_display }}</div>
-                                            <div class="reminder-date">{{ reminder.date_display_short }}</div>
                                             <div class="reminder-title">{{ reminder.title }}</div>
                                         </div>
                                     {% endfor %}
@@ -287,17 +255,14 @@
                             </div>
                         {% endif %}
 
-                        <!-- TOMORROW SECTION -->
                         {% if screen_data.tomorrow_reminders %}
                             <div class="day-section tomorrow">
-                                <h2>Tomorrow</h2>
+                                <h2>{{ next_day_name }}</h2>
 
                                 <div class="reminders-list">
                                     {% for reminder in screen_data.tomorrow_reminders %}
-                                        <!-- Single line with time, date, and title -->
                                         <div class="reminder-line tomorrow">
                                             <div class="reminder-time">{{ reminder.time_display }}</div>
-                                            <div class="reminder-date">{{ reminder.date_display_short }}</div>
                                             <div class="reminder-title">{{ reminder.title }}</div>
                                         </div>
                                     {% endfor %}
@@ -305,7 +270,6 @@
                             </div>
                         {% endif %}
 
-                        <!-- Show no reminders message only on first screen if both are empty -->
                         {% if loop.index == 1 and not screen_data.today_reminders and not screen_data.tomorrow_reminders %}
                             <div class="day-section today">
                                 <h2>Today</h2>
@@ -314,9 +278,9 @@
                                 </div>
                             </div>
                             <div class="day-section tomorrow">
-                                <h2>Tomorrow</h2>
+                                <h2>{{ next_day_name }}</h2>
                                 <div class="no-reminders-day">
-                                    <p>No reminders for tomorrow</p>
+                                    <p>No reminders for {{ next_day_name.lower() }}</p>
                                 </div>
                             </div>
                         {% endif %}
@@ -327,99 +291,47 @@
 
         </main>
 
-        <!-- Small manage button in bottom right corner -->
         <a href="{{ url_for('manage_reminders') }}" class="manage-button">Manage</a>
 
-        <!-- Pagination indicator (only show if multiple screens) -->
         {% if pagination_info.needs_pagination %}
             <div class="pagination-indicator show">
                 <span id="current-screen">1</span> / {{ pagination_info.total_screens }}
             </div>
-
-            <!-- Progress bar for timing -->
-            <div class="progress-bar show" id="progress-bar"></div>
         {% endif %}
     </div>
 
-    <!-- JavaScript for pagination -->
     <script>
-        // Pagination functionality
         document.addEventListener('DOMContentLoaded', function() {
-            const needsPagination = {{ pagination_info.needs_pagination|tojson }};
+            {% if pagination_info.needs_pagination %}
             const totalScreens = {{ pagination_info.total_screens }};
+            let currentScreen = 1;
+            const screens = document.querySelectorAll('.screen');
+            const currentScreenElement = document.getElementById('current-screen');
 
-            if (needsPagination && totalScreens > 1) {
-                let currentScreen = 1;
-                const screenDuration = 15000; // 15 seconds per screen
-                const screens = document.querySelectorAll('.screen');
-                const currentScreenElement = document.getElementById('current-screen');
-                const progressBar = document.getElementById('progress-bar');
+            function showScreen(screenNumber) {
+                screens.forEach(screen => {
+                    screen.classList.remove('active');
+                });
 
-                let progressInterval;
-                let screenTimeout;
-
-                function showScreen(screenNumber) {
-                    // Hide all screens
-                    screens.forEach(screen => {
-                        screen.classList.remove('active');
-                    });
-
-                    // Show current screen
-                    const targetScreen = document.querySelector(`[data-screen="${screenNumber}"]`);
-                    if (targetScreen) {
-                        targetScreen.classList.add('active');
-                    }
-
-                    // Update indicator
-                    if (currentScreenElement) {
-                        currentScreenElement.textContent = screenNumber;
-                    }
-
-                    // Reset and start progress bar
-                    if (progressBar) {
-                        progressBar.style.width = '0%';
-
-                        // Clear existing intervals
-                        if (progressInterval) clearInterval(progressInterval);
-                        if (screenTimeout) clearTimeout(screenTimeout);
-
-                        // Animate progress bar
-                        let progress = 0;
-                        const progressStep = 150 / (screenDuration / 1500); // Update every 100ms
-
-                        progressInterval = setInterval(() => {
-                            progress += progressStep;
-                            progressBar.style.width = Math.min(progress, 150) + '%';
-
-                            if (progress >= 150) {
-                                clearInterval(progressInterval);
-                            }
-                        }, 100);
-
-                        // Set timeout for next screen
-                        screenTimeout = setTimeout(() => {
-                            currentScreen = currentScreen >= totalScreens ? 1 : currentScreen + 1;
-                            showScreen(currentScreen);
-                        }, screenDuration);
-                    }
+                const targetScreen = document.querySelector(`[data-screen="${screenNumber}"]`);
+                if (targetScreen) {
+                    targetScreen.classList.add('active');
                 }
 
-                // Start pagination cycle
-                showScreen(1);
+                if (currentScreenElement) {
+                    currentScreenElement.textContent = screenNumber;
+                }
 
-                // Optional manual navigation with keyboard
-                document.addEventListener('keydown', function(e) {
-                    if (e.key === 'ArrowRight' || e.key === ' ') {
-                        e.preventDefault();
-                        currentScreen = currentScreen >= totalScreens ? 1 : currentScreen + 1;
-                        showScreen(currentScreen);
-                    } else if (e.key === 'ArrowLeft') {
-                        e.preventDefault();
-                        currentScreen = currentScreen <= 1 ? totalScreens : currentScreen - 1;
-                        showScreen(currentScreen);
-                    }
-                });
+                setTimeout(() => {
+                    currentScreen = currentScreen >= totalScreens ? 1 : currentScreen + 1;
+                    showScreen(currentScreen);
+                }, 15000);
             }
+
+            if (totalScreens > 1) {
+                showScreen(1);
+            }
+            {% endif %}
         });
     </script>
 

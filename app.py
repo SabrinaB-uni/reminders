@@ -10,6 +10,29 @@ app.secret_key = 'your-secret-key-change-this-in-production'
 DATABASE_NAME = 'reminders.db'
 
 
+def get_next_working_day():
+    """
+    Get the next working day (Monday-Friday)
+    If today is Friday, return Monday. Otherwise return tomorrow.
+    """
+    today = datetime.now()
+    if today.weekday() == 4:  # Friday (0=Monday, 4=Friday)
+        return today + timedelta(days=3)  # Skip to Monday
+    else:
+        return today + timedelta(days=1)  # Normal next day
+
+
+def get_next_working_day_name():
+    """
+    Get the display name for the next working day
+    """
+    today = datetime.now()
+    if today.weekday() == 4:  # Friday
+        return "Next Working Day"
+    else:
+        return "Tomorrow"
+
+
 def get_db_connection():
     try:
         connection = sqlite3.connect(DATABASE_NAME)
@@ -143,7 +166,6 @@ def get_all_reminders_organized():
         connection.close()
 
 
-# Function to calculate pagination info
 def calculate_pagination_info(today_reminders, tomorrow_reminders, max_per_screen=7):
     """
     Calculate how many screens are needed and organize reminders accordingly
@@ -206,19 +228,20 @@ def tv_display():
     """
     TV display moved to /display route
     """
-    # Get current date and calculate tomorrow
+    # Get current date and calculate next working day
     today = datetime.now()
-    tomorrow = today + timedelta(days=1)
+    next_working_day = get_next_working_day()
+    next_day_name = get_next_working_day_name()
 
     today_str = today.strftime('%Y-%m-%d')
-    tomorrow_str = tomorrow.strftime('%Y-%m-%d')
+    next_working_day_str = next_working_day.strftime('%Y-%m-%d')
 
     # Get reminders for both days
     today_reminders = get_reminders_for_date(today_str)
-    tomorrow_reminders = get_reminders_for_date(tomorrow_str)
+    next_day_reminders = get_reminders_for_date(next_working_day_str)
 
     # Calculate pagination info
-    pagination_info = calculate_pagination_info(today_reminders, tomorrow_reminders, max_per_screen=7)
+    pagination_info = calculate_pagination_info(today_reminders, next_day_reminders, max_per_screen=7)
 
     # Create time information dictionary
     time_info = {
@@ -226,10 +249,11 @@ def tv_display():
         'current_time': today.strftime('%I:%M %p')
     }
 
-    # Pass pagination info to template
+    # Pass pagination info and next day name to template
     return render_template('index.html',
                            time_info=time_info,
-                           pagination_info=pagination_info)
+                           pagination_info=pagination_info,
+                           next_day_name=next_day_name)
 
 
 @app.route('/manage', methods=['GET', 'POST'])
