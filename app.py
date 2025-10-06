@@ -28,9 +28,38 @@ def get_next_working_day_name():
     """
     today = datetime.now()
     if today.weekday() == 4:  # Friday
-        return "Next Working Day"
+        return "Monday"  # Changed from "Next Working Day" to "Monday"
     else:
         return "Tomorrow"
+
+
+def is_weekend(date_str):
+    """
+    Check if a given date string is a weekend
+    """
+    try:
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+        return date_obj.weekday() >= 5  # Saturday=5, Sunday=6
+    except:
+        return False
+
+
+def is_today_friday():
+    """
+    Check if today is Friday
+    """
+    return datetime.now().weekday() == 4
+
+
+def is_monday(date_str):
+    """
+    Check if a given date string is a Monday
+    """
+    try:
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+        return date_obj.weekday() == 0  # Monday=0
+    except:
+        return False
 
 
 def get_db_connection():
@@ -141,6 +170,10 @@ def get_all_reminders_organized():
             # Format date for display
             date_obj = datetime.strptime(reminder['date'], '%Y-%m-%d')
             reminder['date_display'] = date_obj.strftime('%a, %b %d')
+
+            # Add flags for special highlighting
+            reminder['is_weekend'] = is_weekend(reminder['date'])
+            reminder['is_monday_next_working_day'] = is_monday(reminder['date']) and is_today_friday()
 
             # Categorize reminders
             if reminder_date >= today:
@@ -262,40 +295,65 @@ def manage_reminders():
     Management page with organized reminders (current vs old)
     """
     if request.method == 'POST':
-        # Get action type (add or edit)
-        action = request.form.get('action', 'add')
+        try:
+            # Get action type (add or edit)
+            action = request.form.get('action', 'add')
 
-        # Get form data
-        reminder_id = request.form.get('reminder_id')  # Only for edit
-        date = request.form.get('date')
-        time = request.form.get('time')
-        title = request.form.get('title')
-        description = request.form.get('description')
-        location = request.form.get('location')
+            # Get form data
+            reminder_id = request.form.get('reminder_id')  # Only for edit
+            date = request.form.get('date')
+            time = request.form.get('time')
+            title = request.form.get('title')
+            description = request.form.get('description')
+            location = request.form.get('location')
 
-        # Basic validation
-        if not date or not title:
-            flash('Date and title are required!', 'error')
-            return redirect(url_for('manage_reminders'))
+            # Enhanced validation
+            if not date:
+                flash('Date is required!', 'error')
+                return redirect(url_for('manage_reminders'))
 
-        # Convert empty strings to None for database
-        time = time if time else None
-        description = description if description else None
-        location = location if location else None
+            if not title or not title.strip():
+                flash('Title is required!', 'error')
+                return redirect(url_for('manage_reminders'))
 
-        # Convert time to HH:MM:SS format if provided
-        if time:
+            # Check if date is a weekend
+            if is_weekend(date):
+                flash('Cannot schedule reminders on weekends!', 'error')
+                return redirect(url_for('manage_reminders'))
+
+            # Check if date is in the past (except for today)
             try:
-                # Parse the time and reformat to include seconds
-                time_obj = datetime.strptime(time, '%H:%M').time()
-                time = time_obj.strftime('%H:%M:%S')
+                reminder_date = datetime.strptime(date, '%Y-%m-%d').date()
+                today_date = datetime.now().date()
+                if reminder_date < today_date:
+                    flash('Cannot schedule reminders in the past!', 'error')
+                    return redirect(url_for('manage_reminders'))
             except ValueError:
-                # If it's already in HH:MM:SS format, keep it
-                pass
+                flash('Invalid date format!', 'error')
+                return redirect(url_for('manage_reminders'))
 
-        # Process based on action
-        connection = get_db_connection()
-        if connection:
+            # Validate time format if provided
+            if time:
+                try:
+                    # Parse the time and reformat to include seconds
+                    time_obj = datetime.strptime(time, '%H:%M').time()
+                    time = time_obj.strftime('%H:%M:%S')
+                except ValueError:
+                    flash('Invalid time format!', 'error')
+                    return redirect(url_for('manage_reminders'))
+
+            # Convert empty strings to None for database
+            time = time if time else None
+            description = description.strip() if description else None
+            location = location.strip() if location else None
+            title = title.strip()
+
+            # Process based on action
+            connection = get_db_connection()
+            if not connection:
+                flash('Database connection failed!', 'error')
+                return redirect(url_for('manage_reminders'))
+
             try:
                 cursor = connection.cursor()
 
@@ -307,7 +365,10 @@ def manage_reminders():
                     WHERE id=?
                     ''', (date, time, title, description, location, reminder_id))
 
-                    flash('Reminder updated successfully!', 'success')
+                    if cursor.rowcount > 0:
+                        flash('Reminder updated successfully!', 'success')
+                    else:
+                        flash('Reminder not found!', 'error')
 
                 else:
                     # Add new reminder
@@ -321,17 +382,26 @@ def manage_reminders():
                 connection.commit()
 
             except sqlite3.Error as error:
-                flash(f'Database error: {error}', 'error')
+                flash(f'Database error: {str(error)}', 'error')
             finally:
                 connection.close()
+
+        except Exception as error:
+            flash(f'An unexpected error occurred: {str(error)}', 'error')
 
         return redirect(url_for('manage_reminders'))
 
     # GET request - show management interface with organized reminders
     reminders_data = get_all_reminders_organized()
-    return render_template('manage.html',
-                           current_reminders=reminders_data['current_reminders'],
-                           old_reminders=reminders_data['old_reminders'])
+
+    # Pass additional context for weekend handling and Monday highlighting
+    context = {
+        'current_reminders': reminders_data['current_reminders'],
+        'old_reminders': reminders_data['old_reminders'],
+        'is_friday': is_today_friday()
+    }
+
+    return render_template('manage.html', **context)
 
 
 @app.route('/get_reminder/<int:reminder_id>')

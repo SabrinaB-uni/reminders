@@ -5,6 +5,183 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Reminders</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Weekend blur styles */
+        .weekend-blur {
+            opacity: 0.4;
+            filter: blur(0.5px);
+            background-color: #f5f5f5;
+        }
+
+        /* Monday next working day highlight - Override yellow future date styling */
+        .monday-next-working-day {
+            border: 3px solid #0066cc !important;
+            box-shadow: 0 0 10px rgba(0, 102, 204, 0.3) !important;
+            background-color: #f0f8ff !important;
+        }
+
+        /* Override the yellow gradient from your CSS for Monday cards */
+        .monday-next-working-day::before {
+            background: linear-gradient(90deg, #0066cc, #004499) !important;
+        }
+
+        /* Override hover effects for Monday cards */
+        .monday-next-working-day:hover {
+            border-color: #0066cc !important;
+            box-shadow: 0 12px 30px rgba(0, 102, 204, 0.3) !important;
+            transform: translateY(-8px);
+        }
+
+        /* Remove any yellow/warning colors when Monday is next working day */
+        .monday-next-working-day.date-future::before {
+            background: linear-gradient(90deg, #0066cc, #004499) !important;
+        }
+
+        .monday-next-working-day.date-future:hover {
+            border-color: #0066cc !important;
+            box-shadow: 0 12px 30px rgba(0, 102, 204, 0.3) !important;
+        }
+
+        .monday-next-working-day .reminder-date {
+            color: #0066cc !important;
+            font-weight: bold !important;
+        }
+
+        .monday-next-working-day .card-header,
+        .monday-next-working-day .card-content,
+        .monday-next-working-day .card-footer {
+            background-color: transparent !important;
+        }
+
+        /* Error handling styles - Ensure red color */
+        .form-error {
+            border: 2px solid #dc3545 !important;
+            background-color: #fff5f5 !important;
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15) !important;
+        }
+
+        .error-message {
+            color: #dc3545 !important;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            display: none;
+            font-weight: 600;
+            padding: 0.5rem;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        /* Form validation messages - Enhanced red styling */
+        .validation-message {
+            color: #dc3545 !important;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            display: none;
+            font-weight: 600;
+            background-color: #f8d7da;
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            border-left: 4px solid #dc3545;
+            box-shadow: 0 2px 4px rgba(220, 53, 69, 0.1);
+        }
+
+        .validation-message.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Alert styling for consistency */
+        .alert-error {
+            background-color: #f8d7da !important;
+            border-color: #f5c6cb !important;
+            color: #721c24 !important;
+            border-left: 4px solid #dc3545 !important;
+        }
+
+        /* Enhanced date input styling */
+        .date-input-wrapper {
+            position: relative;
+        }
+
+        .date-input-wrapper .form-control {
+            transition: all 0.3s ease;
+        }
+
+        .date-input-wrapper .form-control:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+        }
+
+        /* Weekend date picker styling - limited browser support but helps where available */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+        }
+
+        /* Badge styles */
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-right: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .weekend-badge {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .next-working-day-badge {
+            background-color: #0066cc;
+            color: white;
+        }
+
+        /* Help text styling */
+        .help-text {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+            font-style: italic;
+        }
+
+        /* Success message styling for consistency */
+        .alert-success {
+            background-color: #d4edda !important;
+            border-color: #c3e6cb !important;
+            color: #155724 !important;
+            border-left: 4px solid #28a745 !important;
+        }
+
+        /* Focus states for better accessibility */
+        .form-control:focus {
+            border-color: #007bff !important;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15) !important;
+            outline: none;
+        }
+
+        .form-error:focus {
+            border-color: #dc3545 !important;
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15) !important;
+        }
+    </style>
 </head>
 <body>
 <div class="container">
@@ -44,7 +221,7 @@
                 <button onclick="cancelForm()" class="btn btn-small btn-secondary">Cancel</button>
             </div>
 
-            <form method="POST" class="reminder-form" id="mainForm">
+            <form method="POST" class="reminder-form" id="mainForm" onsubmit="return validateForm(event)">
 
                 <input type="hidden" name="action" id="formAction" value="add">
                 <input type="hidden" name="reminder_id" id="reminderId">
@@ -52,7 +229,11 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="date">Date *</label>
-                        <input type="date" id="date" name="date" required class="form-control">
+                        <div class="date-input-wrapper">
+                            <input type="date" id="date" name="date" required class="form-control">
+                        </div>
+                        <div id="dateError" class="validation-message">Please select a valid weekday (no weekends)</div>
+                        <small class="help-text">⚠️ Weekends are disabled - weekdays only</small>
                     </div>
 
                     <div class="form-group">
@@ -64,17 +245,21 @@
 
                 <div class="form-group">
                     <label for="title">Title *</label>
-                    <input type="text" id="title" name="title" required maxlength="255" class="form-control">
+                    <input type="text" id="title" name="title" required maxlength="255" class="form-control"
+                           placeholder="Enter reminder title...">
+                    <div id="titleError" class="validation-message">Title is required</div>
                 </div>
 
                 <div class="form-group">
                     <label for="description">Description</label>
-                    <textarea id="description" name="description" rows="3" class="form-control"></textarea>
+                    <textarea id="description" name="description" rows="3" class="form-control"
+                              placeholder="Optional description..."></textarea>
                 </div>
 
                 <div class="form-group">
                     <label for="location">Location</label>
-                    <input type="text" id="location" name="location" maxlength="200" class="form-control">
+                    <input type="text" id="location" name="location" maxlength="200" class="form-control"
+                           placeholder="Optional location...">
                 </div>
 
                 <div class="form-actions">
@@ -94,7 +279,7 @@
 
             <div class="reminders-grid">
                 {% for reminder in current_reminders %}
-                <div class="reminder-card-manage" data-date="{{ reminder.date }}">
+                <div class="reminder-card-manage {% if reminder.is_weekend %}weekend-blur{% endif %} {% if reminder.is_monday_next_working_day %}monday-next-working-day{% endif %}" data-date="{{ reminder.date }}">
                     <div class="card-header">
                         <div class="reminder-date">{{ reminder.date_display }}</div>
                         <div class="reminder-time">{{ reminder.time_display }}</div>
@@ -112,7 +297,12 @@
 
                     <div class="card-footer">
                         <div class="badges">
-                            <!-- You can add priority/category badges here if needed -->
+                            {% if reminder.is_weekend %}
+                            <span class="badge weekend-badge">Weekend</span>
+                            {% endif %}
+                            {% if reminder.is_monday_next_working_day %}
+                            <span class="badge next-working-day-badge">Next Working Day</span>
+                            {% endif %}
                         </div>
 
                         <div class="actions">
@@ -139,7 +329,7 @@
 
             <div class="reminders-grid">
                 {% for reminder in old_reminders %}
-                <div class="reminder-card-manage" data-date="{{ reminder.date }}">
+                <div class="reminder-card-manage {% if reminder.is_weekend %}weekend-blur{% endif %}" data-date="{{ reminder.date }}">
                     <div class="card-header">
                         <div class="reminder-date">{{ reminder.date_display }}</div>
                         <div class="reminder-time">{{ reminder.time_display }}</div>
@@ -157,7 +347,9 @@
 
                     <div class="card-footer">
                         <div class="badges">
-                            <!-- You can add priority/category badges here if needed -->
+                            {% if reminder.is_weekend %}
+                            <span class="badge weekend-badge">Weekend</span>
+                            {% endif %}
                         </div>
 
                         <div class="actions">
@@ -189,6 +381,85 @@
 </div>
 
 <script>
+    // Helper function to check if date is weekend
+    function isWeekend(dateString) {
+        const date = new Date(dateString + 'T00:00:00');
+        const day = date.getDay();
+        return day === 0 || day === 6; // Sunday = 0, Saturday = 6
+    }
+
+    // Helper function to check if date is in the past
+    function isDateInPast(dateString) {
+        const inputDate = new Date(dateString + 'T00:00:00');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return inputDate < today;
+    }
+
+    // Function to show validation error
+    function showValidationError(errorId, message) {
+        const errorElement = document.getElementById(errorId);
+        const inputElement = errorId === 'dateError' ? document.getElementById('date') : document.getElementById('title');
+
+        if (errorElement && inputElement) {
+            inputElement.classList.add('form-error');
+            errorElement.textContent = message;
+            errorElement.classList.add('show');
+        }
+    }
+
+    // Function to clear validation error
+    function clearValidationError(errorId) {
+        const errorElement = document.getElementById(errorId);
+        const inputElement = errorId === 'dateError' ? document.getElementById('date') : document.getElementById('title');
+
+        if (errorElement && inputElement) {
+            inputElement.classList.remove('form-error');
+            errorElement.classList.remove('show');
+        }
+    }
+
+    // Form validation function
+    function validateForm(event) {
+        const date = document.getElementById('date').value;
+        const title = document.getElementById('title').value.trim();
+
+        let hasError = false;
+
+        // Clear previous errors
+        document.querySelectorAll('.form-control').forEach(field => {
+            field.classList.remove('form-error');
+        });
+        document.querySelectorAll('.validation-message').forEach(msg => {
+            msg.classList.remove('show');
+        });
+
+        // Validate date
+        if (!date) {
+            showValidationError('dateError', '❌ Date is required');
+            hasError = true;
+        } else if (isWeekend(date)) {
+            showValidationError('dateError', '❌ Cannot schedule reminders on weekends! Please choose a weekday.');
+            hasError = true;
+        } else if (isDateInPast(date)) {
+            showValidationError('dateError', '❌ Cannot schedule reminders in the past!');
+            hasError = true;
+        }
+
+        // Validate title
+        if (!title) {
+            showValidationError('titleError', '❌ Title is required');
+            hasError = true;
+        }
+
+        if (hasError) {
+            event.preventDefault();
+            return false;
+        }
+
+        return true;
+    }
+
     // Function to categorize reminders by date
     function categorizeRemindersByDate() {
         const today = new Date();
@@ -210,18 +481,24 @@
             } else if (reminderDate.toDateString() === tomorrow.toDateString()) {
                 card.classList.add('date-tomorrow');
             } else if (reminderDate > tomorrow) {
-                // All future dates (beyond tomorrow)
                 card.classList.add('date-future');
             } else if (reminderDate < today) {
-                // Past dates
                 card.classList.add('date-past');
             }
         });
     }
 
+    // FIXED: Toggle Add Form function
     function toggleAddForm() {
+        console.log('toggleAddForm called'); // Debug log
+
         const form = document.getElementById('reminderForm');
         const toggleBtn = document.getElementById('toggleBtn');
+
+        if (!form || !toggleBtn) {
+            console.error('Form or button element not found');
+            return;
+        }
 
         if (form.style.display === 'none' || form.style.display === '') {
             showForm('add');
@@ -234,66 +511,125 @@
         }
     }
 
+    // FIXED: Show Form function
     function showForm(mode, reminderData = null) {
-        document.getElementById('reminderForm').style.display = 'block';
+        console.log('showForm called with mode:', mode); // Debug log
 
-        if (mode === 'add') {
-            document.getElementById('formTitle').textContent = 'Add New Reminder';
-            document.getElementById('formAction').value = 'add';
-            document.getElementById('submitBtn').textContent = 'Save Reminder';
+        const form = document.getElementById('reminderForm');
+        const formTitle = document.getElementById('formTitle');
+        const formAction = document.getElementById('formAction');
+        const submitBtn = document.getElementById('submitBtn');
+        const mainForm = document.getElementById('mainForm');
+        const reminderId = document.getElementById('reminderId');
 
-            document.getElementById('mainForm').reset();
-            document.getElementById('reminderId').value = '';
-
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('date').value = today;
-
-        } else if (mode === 'edit' && reminderData) {
-            document.getElementById('formTitle').textContent = 'Edit Reminder';
-            document.getElementById('formAction').value = 'edit';
-            document.getElementById('submitBtn').textContent = 'Update Reminder';
-
-            document.getElementById('reminderId').value = reminderData.id;
-            document.getElementById('date').value = reminderData.date;
-            document.getElementById('time').value = reminderData.time || '';
-            document.getElementById('title').value = reminderData.title;
-            document.getElementById('description').value = reminderData.description || '';
-            document.getElementById('location').value = reminderData.location || '';
+        if (!form) {
+            console.error('Form element not found');
+            return;
         }
 
-        document.getElementById('reminderForm').scrollIntoView({
-            behavior: 'smooth'
+        // Show the form
+        form.style.display = 'block';
+
+        // Clear previous validation errors
+        document.querySelectorAll('.form-control').forEach(field => {
+            field.classList.remove('form-error');
+        });
+        document.querySelectorAll('.validation-message').forEach(msg => {
+            msg.classList.remove('show');
+        });
+
+        if (mode === 'add') {
+            if (formTitle) formTitle.textContent = 'Add New Reminder';
+            if (formAction) formAction.value = 'add';
+            if (submitBtn) submitBtn.textContent = 'Save Reminder';
+            if (mainForm) mainForm.reset();
+            if (reminderId) reminderId.value = '';
+
+            // Set today as default date
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            const dateInput = document.getElementById('date');
+            if (dateInput) dateInput.value = todayStr;
+
+        } else if (mode === 'edit' && reminderData) {
+            if (formTitle) formTitle.textContent = 'Edit Reminder';
+            if (formAction) formAction.value = 'edit';
+            if (submitBtn) submitBtn.textContent = 'Update Reminder';
+
+            // Populate form with existing data
+            if (reminderId) reminderId.value = reminderData.id;
+
+            const dateInput = document.getElementById('date');
+            if (dateInput) dateInput.value = reminderData.date;
+
+            const timeInput = document.getElementById('time');
+            if (timeInput) timeInput.value = reminderData.time || '';
+
+            const titleInput = document.getElementById('title');
+            if (titleInput) titleInput.value = reminderData.title;
+
+            const descInput = document.getElementById('description');
+            if (descInput) descInput.value = reminderData.description || '';
+
+            const locationInput = document.getElementById('location');
+            if (locationInput) locationInput.value = reminderData.location || '';
+        }
+
+        // Scroll to form
+        form.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
         });
     }
 
+    // FIXED: Hide Form function
     function hideForm() {
-        document.getElementById('reminderForm').style.display = 'none';
-
+        const form = document.getElementById('reminderForm');
         const toggleBtn = document.getElementById('toggleBtn');
-        toggleBtn.textContent = 'Add New';
-        toggleBtn.className = 'btn btn-primary';
+
+        if (form) {
+            form.style.display = 'none';
+        }
+
+        if (toggleBtn) {
+            toggleBtn.textContent = 'Add New';
+            toggleBtn.className = 'btn btn-primary';
+        }
     }
 
+    // FIXED: Cancel Form function
     function cancelForm() {
         hideForm();
     }
 
+    // FIXED: Edit Reminder function
     function editReminder(reminderId) {
-        console.log('Loading reminder data...');
+        console.log('editReminder called with ID:', reminderId); // Debug log
+
+        if (!reminderId) {
+            console.error('No reminder ID provided');
+            return;
+        }
 
         fetch(`/get_reminder/${reminderId}`)
             .then(response => {
+                console.log('Response status:', response.status); // Debug log
+
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
+                console.log('Reminder data loaded:', data); // Debug log
+
                 showForm('edit', data);
 
                 const toggleBtn = document.getElementById('toggleBtn');
-                toggleBtn.textContent = 'Cancel';
-                toggleBtn.className = 'btn btn-secondary';
+                if (toggleBtn) {
+                    toggleBtn.textContent = 'Cancel';
+                    toggleBtn.className = 'btn btn-secondary';
+                }
             })
             .catch(error => {
                 console.error('Error loading reminder:', error);
@@ -301,10 +637,47 @@
             });
     }
 
+    // Function to setup date picker weekend disabling
+    function setupDatePickerWeekendDisabling() {
+        const dateInput = document.getElementById('date');
+        if (!dateInput) return;
+
+        // Set min date to today
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        dateInput.setAttribute('min', todayStr);
+
+        // Add event listener to prevent weekend selection
+        dateInput.addEventListener('input', function(e) {
+            const selectedDate = e.target.value;
+            if (selectedDate && isWeekend(selectedDate)) {
+                e.target.value = '';
+                showValidationError('dateError', '❌ Weekends are not allowed. Please choose a weekday.');
+            }
+        });
+    }
+
+    // Initialize everything when DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded, initializing...'); // Debug log
+
         // Categorize reminders by date when page loads
         categorizeRemindersByDate();
 
+        // Setup date picker weekend disabling
+        setupDatePickerWeekendDisabling();
+
+        // Add real-time title validation
+        const titleInput = document.getElementById('title');
+        if (titleInput) {
+            titleInput.addEventListener('input', function() {
+                if (this.value.trim()) {
+                    clearValidationError('titleError');
+                }
+            });
+        }
+
+        // Auto-hide alerts
         const alerts = document.querySelectorAll('.alert');
         alerts.forEach(alert => {
             setTimeout(() => {
@@ -318,6 +691,16 @@
                 }, 500);
             }, 5000);
         });
+
+        // Test button functionality
+        const toggleBtn = document.getElementById('toggleBtn');
+        if (toggleBtn) {
+            console.log('Toggle button found and ready'); // Debug log
+        } else {
+            console.error('Toggle button not found!');
+        }
+
+        console.log('Initialization complete');
     });
 </script>
 </body>
