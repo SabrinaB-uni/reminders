@@ -420,6 +420,262 @@ body {
     line-height: 1.6;
 }
 
+/* Old reminders section styling */
+.old-reminders-section {
+    margin-top: 40px;
+    border-top: 3px solid #e9ecef;
+    padding-top: 40px;
+}
+
+.old-reminders-section .section-header h2 {
+    color: #6c757d;
+}
+
+.old-reminders-section .reminder-count {
+    background: #f8f9fa;
+    color: #6c757d;
+}
+
+/* Slightly fade old reminder cards */
+.old-reminders-section .reminder-card-manage {
+    opacity: 0.85;
+}
+
+.old-reminders-section .reminder-card-manage:hover {
+    opacity: 1;
+}
+
+/* Loan Management Section Styling */
+.loan-management-section {
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    margin-bottom: 40px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.loan-management-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+.loan-management-section .section-header h2 {
+    color: #ff9933;
+    font-size: 24px;
+}
+
+.loan-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.loans-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 25px;
+    margin-top: 25px;
+}
+
+.loan-card {
+    background: #ffebcc;
+    border: 3px solid #ff9933;
+    border-radius: 12px;
+    padding: 25px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.loan-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #ff9933, #cc6600);
+}
+
+.loan-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(255, 153, 51, 0.3);
+    border-color: #cc6600;
+}
+
+.loan-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+.loan-badge {
+    background-color: #ff9933;
+    color: white;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.loan-content {
+    margin-bottom: 18px;
+}
+
+/* FIXED: Removed duplicate .loan-student class */
+.loan-student {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #cc6600;
+    margin-bottom: 10px;
+    line-height: 1.3;
+}
+
+.loan-item {
+    font-size: 1.1rem;
+    color: #cc6600;
+    margin: 0;
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+.loan-footer {
+    padding-top: 12px;
+    border-top: 1px solid #ff9933;
+}
+
+.loan-original {
+    font-size: 0.8rem;
+    color: #996600;
+    font-style: italic;
+    line-height: 1.3;
+}
+
+.no-loans {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+    background: #fff8f0;
+    border: 2px dashed #ff9933;
+    border-radius: 12px;
+    margin-top: 25px;
+}
+
+.no-loans p {
+    margin-bottom: 25px;
+    font-size: 1.2rem;
+    color: #cc6600;
+}
+
+.no-loans .btn {
+    background: #ff9933;
+    color: white;
+    padding: 12px 24px;
+    font-size: 1rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.no-loans .btn:hover {
+    background: #cc6600;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 153, 51, 0.3);
+}
+
+/* Loan form specific styling */
+.loan-management-section .form-section {
+    background: #fff8f0;
+    border: 2px solid #ff9933;
+    box-shadow: 0 4px 12px rgba(255, 153, 51, 0.1);
+}
+
+.loan-management-section .form-header h3 {
+    color: #cc6600;
+    font-size: 1.3rem;
+}
+
+.loan-management-section .btn-primary {
+    background: #ff9933;
+    border-color: #ff9933;
+}
+
+.loan-management-section .btn-primary:hover {
+    background: #cc6600;
+    border-color: #cc6600;
+}
+
+/* Monday next working day override styles */
+.monday-next-working-day {
+    border: 3px solid #0066cc !important;
+    box-shadow: 0 0 10px rgba(0, 102, 204, 0.3) !important;
+    background-color: #f0f8ff !important;
+}
+
+.monday-next-working-day::before {
+    background: linear-gradient(90deg, #0066cc, #004499) !important;
+}
+
+.monday-next-working-day:hover {
+    border-color: #0066cc !important;
+    box-shadow: 0 12px 30px rgba(0, 102, 204, 0.3) !important;
+    transform: translateY(-8px);
+}
+
+.monday-next-working-day .reminder-date {
+    color: #0066cc !important;
+    font-weight: bold !important;
+}
+
+/* Weekend blur styles */
+.weekend-blur {
+    opacity: 0.4;
+    filter: blur(0.5px);
+    background-color: #f5f5f5;
+}
+
+/* Form validation styles */
+.form-error {
+    border: 2px solid #dc3545 !important;
+    background-color: #fff5f5 !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15) !important;
+}
+
+.validation-message {
+    color: #dc3545 !important;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    display: none;
+    font-weight: 600;
+    background-color: #f8d7da;
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    border-left: 4px solid #dc3545;
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.1);
+}
+
+.validation-message.show {
+    display: block;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Responsive design */
 @media (max-width: 1200px) {
     .container {
@@ -429,6 +685,11 @@ body {
     .reminders-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 25px;
+    }
+
+    .loans-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
     }
 }
 
@@ -465,8 +726,12 @@ body {
     .reminders-grid {
         grid-template-columns: 1fr;
         gap: 20px;
-        padding: 10px
-                padding: 10px 0;
+        padding: 10px 0;
+    }
+
+    .loans-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
     }
 
     .card-footer {
@@ -480,9 +745,25 @@ body {
         min-height: 180px;
     }
 
-    .reminders-list-section {
+    .loan-card {
+        padding: 20px;
+    }
+
+    .reminders-list-section,
+    .loan-management-section {
         padding: 25px;
     }
+
+    .section-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+
+    .loan-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
 }
 
 @media (max-width: 480px) {
@@ -490,61 +771,186 @@ body {
         padding: 15px;
     }
 
-    .reminders-list-section {
+    .reminders-list-section,
+    .loan-management-section {
         padding: 20px;
     }
 
-    .reminder-card-manage {
+    .reminder-card-manage,
+    .loan-card {
         padding: 18px;
         min-height: auto;
     }
 
-    .reminders-grid {
+        .reminders-grid,
+    .loans-grid {
         gap: 15px;
     }
-}
-/* ... your existing CSS code ... */
 
-@media (max-width: 480px) {
-    .container {
+    .page-header h1 {
+        font-size: 24px;
+    }
+
+    .section-header h2 {
+        font-size: 20px;
+    }
+
+    .form-section {
         padding: 15px;
     }
 
-    .reminders-list-section {
-        padding: 20px;
+    .btn {
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+
+    .loan-student {
+        font-size: 1.1rem;
+    }
+
+    .loan-item {
+        font-size: 1rem;
+    }
+}
+
+/* Print styles */
+@media print {
+    .page-header .header-left,
+    .page-header .header-right {
+        display: none;
+    }
+
+    .form-section,
+    .btn,
+    .actions {
+        display: none !important;
+    }
+
+    .reminders-grid,
+    .loans-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+
+    .reminder-card-manage,
+    .loan-card {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .loan-card {
+        border-width: 4px;
+    }
+
+    .loan-badge {
+        border: 2px solid #000;
     }
 
     .reminder-card-manage {
-        padding: 18px;
-        min-height: auto;
-    }
-
-    .reminders-grid {
-        gap: 15px;
+        border-width: 3px;
     }
 }
 
-/* ADD THE NEW CSS HERE - Old reminders section styling */
-.old-reminders-section {
-    margin-top: 40px;
-    border-top: 3px solid #e9ecef;
-    padding-top: 40px;
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .reminder-card-manage,
+    .loan-card,
+    .btn {
+        transition: none;
+    }
+
+    .reminder-card-manage:hover,
+    .loan-card:hover {
+        transform: none;
+    }
 }
 
-.old-reminders-section .section-header h2 {
-    color: #6c757d;
+/* Focus styles for accessibility */
+.btn:focus,
+.form-control:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
 }
 
-.old-reminders-section .reminder-count {
-    background: #f8f9fa;
-    color: #6c757d;
+.loan-card:focus,
+.reminder-card-manage:focus {
+    outline: 3px solid #007bff;
+    outline-offset: 3px;
 }
 
-/* Slightly fade old reminder cards */
-.old-reminders-section .reminder-card-manage {
-    opacity: 0.85;
+/* Loading states */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
 }
 
-.old-reminders-section .reminder-card-manage:hover {
-    opacity: 1;
+.form-control:disabled {
+    background-color: #f8f9fa;
+    opacity: 0.6;
+}
+
+/* Animation for form validation messages */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+    20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+.form-error {
+    animation: shake 0.5s ease-in-out;
+}
+
+/* Tooltips */
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Selection styling */
+::selection {
+    background: #007bff;
+    color: white;
+}
+
+::-moz-selection {
+    background: #007bff;
+    color: white;
 }

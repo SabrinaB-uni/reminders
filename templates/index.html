@@ -139,6 +139,13 @@
             border-left-color: #000080;
         }
 
+        /* Updated: Light orange loan styling */
+        .reminder-line.loan {
+            background-color: #ffebcc;
+            border-left-color: #ff9933;
+            border-left-width: 6px;
+        }
+
         .reminder-time {
             font-size: 75px !important;
             font-weight: bold;
@@ -146,6 +153,12 @@
             min-width: 350px;
             color: #000000;
             flex-shrink: 0;
+        }
+
+        /* Updated: Light orange loan time styling */
+        .reminder-time.loan-time {
+            color: #cc6600;
+            font-weight: bold;
         }
 
         .reminder-date {
@@ -165,6 +178,12 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+
+        /* Updated: Light orange loan title styling */
+        .reminder-title.loan-title {
+            color: #cc6600;
+            font-weight: bold;
         }
 
         .no-reminders-day {
@@ -212,6 +231,25 @@
         .pagination-indicator.show {
             display: block;
         }
+
+        /* Updated: Light orange loans indicator */
+        .loans-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: #ff9933;
+            color: #ffffff;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 1000;
+            display: none;
+        }
+
+        .loans-indicator.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -245,10 +283,12 @@
                                 <h2>Today</h2>
 
                                 <div class="reminders-list">
-                                    {% for reminder in screen_data.today_reminders %}
-                                        <div class="reminder-line today">
-                                            <div class="reminder-time">{{ reminder.time_display }}</div>
-                                            <div class="reminder-title">{{ reminder.title }}</div>
+                                    {% for item in screen_data.today_reminders %}
+                                        <div class="reminder-line today {% if item.is_loan %}loan{% endif %}">
+                                            <div class="reminder-time {% if item.is_loan %}loan-time{% endif %}">
+                                                {% if item.is_loan %}LOAN{% else %}{{ item.time_display }}{% endif %}
+                                            </div>
+                                            <div class="reminder-title {% if item.is_loan %}loan-title{% endif %}">{{ item.title }}</div>
                                         </div>
                                     {% endfor %}
                                 </div>
@@ -298,6 +338,12 @@
                 <span id="current-screen">1</span> / {{ pagination_info.total_screens }}
             </div>
         {% endif %}
+
+        {% if loans_count and loans_count > 0 %}
+            <div class="loans-indicator show">
+                {{ loans_count }} Active Loan{{ 's' if loans_count != 1 else '' }}
+            </div>
+        {% endif %}
     </div>
 
     <script>
@@ -331,6 +377,10 @@
             if (totalScreens > 1) {
                 showScreen(1);
             }
+            {% endif %}
+
+            {% if loans_count %}
+                console.log('Active loans detected: {{ loans_count }}');
             {% endif %}
         });
     </script>
