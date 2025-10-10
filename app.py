@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 def get_active_loans():
     """
-    Fetch active loans from the loan system API
+    Fetch active loans from API
     Returns list of loan strings or empty list if API fails
     """
     try:
@@ -47,39 +47,49 @@ def get_active_loans():
 def parse_loan_string(loan_string):
     """
     Parse loan string to extract student name and item
-    Input: "T Student - Card Reader (5d)"
-    Output: {"student": "T Student", "item": "Card Reader", "days": "5d"}
     """
     try:
-        # Extract days if present
-        days = ""
-        if '(' in loan_string and ')' in loan_string:
-            days_part = loan_string.split('(')[-1].split(')')[0]
-            days = days_part
-            # Remove the duration part for parsing student and item
-            clean_string = loan_string.split(' (')[0]
-        else:
-            clean_string = loan_string
+        # Find the LAST occurrence of '(' for the days
+        # This handles student names with parentheses
+        last_paren_index = loan_string.rfind('(')
 
-        # Split by ' - ' to get student and item
+        if last_paren_index != -1 and ')' in loan_string[last_paren_index:]:
+            # Extract days from the last parentheses: (0d), (6d), etc.
+            closing_paren = loan_string.rfind(')')
+            days = loan_string[last_paren_index + 1:closing_paren]
+
+            # Remove ONLY the days part, keeping student name parentheses
+            clean_string = loan_string[:last_paren_index].strip()
+        else:
+            # No days found
+            days = ""
+            clean_string = loan_string.strip()
+
+        # Split by ' - ' to separate student and item
         if ' - ' in clean_string:
-            student, item = clean_string.split(' - ', 1)
+            parts = clean_string.split(' - ', 1)  # Split only on first ' - '
+            student = parts[0].strip()
+            item = parts[1].strip()
+
             return {
-                "student": student.strip(),
-                "item": item.strip(),
+                "student": student,
+                "item": item,
                 "days": days
             }
         else:
-            # If format doesn't match, return as is
+            # Format doesn't match expected pattern
             return {
-                "student": "Unknown",
-                "item": clean_string.strip(),
+                "student": clean_string if clean_string else "Unknown",
+                "item": "Unknown",
                 "days": days
             }
-    except:
+
+    except Exception as e:
+        # Fallback for any parsing errors
+        logger.error(f"Error parsing loan string '{loan_string}': {e}")
         return {
-            "student": "Unknown",
-            "item": loan_string,
+            "student": loan_string,
+            "item": "Unknown",
             "days": ""
         }
 
@@ -87,8 +97,6 @@ def parse_loan_string(loan_string):
 def format_loans_for_display(active_loans):
     """
     Format loan data for TV display
-    Converts loan strings to reminder-like objects for consistent display
-    NOW PRESERVES FULL API OUTPUT INCLUDING DAYS (e.g., "T Student - Card Reader (5d)")
     """
     formatted_loans = []
 
@@ -96,11 +104,10 @@ def format_loans_for_display(active_loans):
         # Parse the loan string to extract components
         parsed_loan = parse_loan_string(loan)
 
-        # Create a reminder-like object for loans
-        # TITLE NOW USES DIRECT API OUTPUT
+        # TITLE USES DIRECT API OUTPUT
         loan_item = {
             'id': f'loan_{len(formatted_loans)}',
-            'title': loan,  # ✅ DIRECT API OUTPUT - "T Student - Card Reader (5d)"
+            'title': loan,  # DIRECT API OUTPUT
             'description': None,
             'location': None,
             'time': None,
@@ -111,7 +118,7 @@ def format_loans_for_display(active_loans):
             'student': parsed_loan['student'],
             'item': parsed_loan['item'],
             'days': parsed_loan['days'],
-            'original': loan  # Keep original for reference
+            'original': loan  #original for reference
         }
         formatted_loans.append(loan_item)
 
@@ -120,8 +127,8 @@ def format_loans_for_display(active_loans):
 
 def get_next_working_day():
     """
-    Get the next working day (Monday-Friday)
-    If today is Friday, return Monday. Otherwise return tomorrow.
+    Get next working day
+    If today is Friday, return Monday or return tomorrow.
     """
     today = datetime.now()
     if today.weekday() == 4:  # Friday (0=Monday, 4=Friday)
