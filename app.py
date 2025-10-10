@@ -47,39 +47,60 @@ def get_active_loans():
 def parse_loan_string(loan_string):
     """
     Parse loan string to extract student name and item
-    Input: "T Student - Card Reader (0d)"
-    Output: {"student": "T Student", "item": "Card Reader"}
+    Input: "T Student - Card Reader (5d)"
+    Output: {"student": "T Student", "item": "Card Reader", "days": "5d"}
     """
     try:
-        # Remove the duration part (0d), (1d), etc.
-        clean_string = loan_string.split(' (')[0]
+        # Extract days if present
+        days = ""
+        if '(' in loan_string and ')' in loan_string:
+            days_part = loan_string.split('(')[-1].split(')')[0]
+            days = days_part
+            # Remove the duration part for parsing student and item
+            clean_string = loan_string.split(' (')[0]
+        else:
+            clean_string = loan_string
 
         # Split by ' - ' to get student and item
         if ' - ' in clean_string:
             student, item = clean_string.split(' - ', 1)
-            return {"student": student.strip(), "item": item.strip()}
+            return {
+                "student": student.strip(),
+                "item": item.strip(),
+                "days": days
+            }
         else:
             # If format doesn't match, return as is
-            return {"student": "Unknown", "item": clean_string.strip()}
+            return {
+                "student": "Unknown",
+                "item": clean_string.strip(),
+                "days": days
+            }
     except:
-        return {"student": "Unknown", "item": loan_string}
+        return {
+            "student": "Unknown",
+            "item": loan_string,
+            "days": ""
+        }
 
 
 def format_loans_for_display(active_loans):
     """
     Format loan data for TV display
     Converts loan strings to reminder-like objects for consistent display
+    NOW PRESERVES FULL API OUTPUT INCLUDING DAYS (e.g., "T Student - Card Reader (5d)")
     """
     formatted_loans = []
 
     for loan in active_loans:
-        # Parse the loan string
+        # Parse the loan string to extract components
         parsed_loan = parse_loan_string(loan)
 
         # Create a reminder-like object for loans
+        # TITLE NOW USES DIRECT API OUTPUT
         loan_item = {
             'id': f'loan_{len(formatted_loans)}',
-            'title': f"{parsed_loan['student']} - {parsed_loan['item']}",
+            'title': loan,  # ✅ DIRECT API OUTPUT - "T Student - Card Reader (5d)"
             'description': None,
             'location': None,
             'time': None,
@@ -88,7 +109,9 @@ def format_loans_for_display(active_loans):
             'date_display': 'Today',
             'is_loan': True,
             'student': parsed_loan['student'],
-            'item': parsed_loan['item']
+            'item': parsed_loan['item'],
+            'days': parsed_loan['days'],
+            'original': loan  # Keep original for reference
         }
         formatted_loans.append(loan_item)
 
@@ -341,6 +364,8 @@ def calculate_pagination_info(today_reminders, tomorrow_reminders, active_loans=
     }
 
 
+# ✅ ROUTES START HERE - NO INDENTATION!
+
 @app.route('/')
 def manage_reminders_root():
     """
@@ -353,7 +378,7 @@ def manage_reminders_root():
 def tv_display():
     """
     TV display moved to /display route
-    Now includes active loans integration
+    Now includes active loans integration with days preserved
     """
     # Get current date and calculate next working day
     today = datetime.now()
@@ -367,7 +392,7 @@ def tv_display():
     today_reminders = get_reminders_for_date(today_str)
     next_day_reminders = get_reminders_for_date(next_working_day_str)
 
-    # Get active loans and format them for display
+    # Get active loans and format them for display (preserves days)
     active_loans_raw = get_active_loans()
     active_loans_formatted = format_loans_for_display(active_loans_raw)
 
@@ -462,10 +487,10 @@ def manage_reminders():
 
                 if action == 'edit' and reminder_id:
                     cursor.execute('''
-                        UPDATE reminders 
-                        SET date=?, time=?, title=?, description=?, location=?
-                        WHERE id=?
-                        ''', (date, time, title, description, location, reminder_id))
+                    UPDATE reminders 
+                    SET date=?, time=?, title=?, description=?, location=?
+                    WHERE id=?
+                    ''', (date, time, title, description, location, reminder_id))
 
                     if cursor.rowcount > 0:
                         flash('Reminder updated successfully!', 'success')
@@ -474,9 +499,9 @@ def manage_reminders():
 
                 else:
                     cursor.execute('''
-                        INSERT INTO reminders (date, time, title, description, location)
-                        VALUES (?, ?, ?, ?, ?)
-                        ''', (date, time, title, description, location))
+                    INSERT INTO reminders (date, time, title, description, location)
+                    VALUES (?, ?, ?, ?, ?)
+                    ''', (date, time, title, description, location))
 
                     flash('Reminder added successfully!', 'success')
 
@@ -495,7 +520,7 @@ def manage_reminders():
     # GET request - show management interface with organized reminders and loans
     reminders_data = get_all_reminders_organized()
 
-    # Get active loans for display in manage page
+    # Get active loans for display in manage page (with days preserved)
     active_loans_raw = get_active_loans()
     active_loans_formatted = []
 
@@ -504,7 +529,8 @@ def manage_reminders():
         active_loans_formatted.append({
             'student': parsed['student'],
             'item': parsed['item'],
-            'original': loan
+            'days': parsed['days'],
+            'original': loan  # Full string with days: "T Student - Card Reader (5d)"
         })
 
     context = {
@@ -534,7 +560,6 @@ def get_reminder(reminder_id):
 
         if reminder:
             reminder_dict = dict(reminder)
-
             # Convert time format for HTML input (HH:MM:SS to HH:MM)
             if reminder_dict['time']:
                 time_obj = parse_time_safely(reminder_dict['time'])
@@ -581,8 +606,8 @@ def delete_reminder(reminder_id):
 
 if __name__ == '__main__':
     print("Starting TV Reminders System with Loans Integration...")
-    print("Management (Default): http://localhost:5000")
-    print("TV Display: http://localhost:5000/display")
-    print("Management: http://localhost:5000/manage")
+    print("Management (Default): http://localhost:5005")
+    print("TV Display: http://localhost:5005/display")
+    print("Management: http://localhost:5005/manage")
     print(f"Loans API: {LOANS_API_URL}")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5005)
