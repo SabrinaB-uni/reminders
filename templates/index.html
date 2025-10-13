@@ -49,21 +49,42 @@
             text-align: center;
         }
 
-        .current-date {
+        /* Schedule Banner Styling */
+        .schedule-banner {
             font-size: 55px !important;
             font-weight: bold !important;
             color: #000000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .banner-date {
+            color: #000000;
+        }
+
+        .banner-separator {
+            color: #666666;
+            font-weight: normal;
+        }
+
+        .banner-time {
+            color: #000000;
+        }
+
+        .banner-period {
+            color: #006400;
+            background-color: #e8f5e9;
+            padding: 5px 20px;
+            border-radius: 8px;
+            font-size: 50px !important;
         }
 
         .time-section {
             text-align: right;
             flex-shrink: 0;
-        }
-
-        .current-time {
-            font-size: 65px !important;
-            font-weight: bold !important;
-            color: #000000;
+            min-width: 100px;
         }
 
         .tv-content {
@@ -261,14 +282,20 @@
 
             <div class="center-section">
                 {% if time_info %}
-                    <div class="current-date">{{ time_info.display_date }}</div>
+                    <div class="schedule-banner">
+                        <span class="banner-date">{{ time_info.display_date }}</span>
+                        <span class="banner-separator">-</span>
+                        <span class="banner-time">{{ time_info.current_time }}</span>
+                        {% if time_info.has_schedule %}
+                            <span class="banner-separator">-</span>
+                            <span class="banner-period">Period: {{ time_info.current_period }} ({{ time_info.week_type }})</span>
+                        {% endif %}
+                    </div>
                 {% endif %}
             </div>
 
             <div class="time-section">
-                {% if time_info %}
-                    <div class="current-time">{{ time_info.current_time }}</div>
-                {% endif %}
+                <!-- Empty or can show additional info -->
             </div>
         </div>
 

@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 import sqlite3
 from datetime import datetime, timedelta
-import math
 import requests
 import logging
 
@@ -11,12 +10,13 @@ app.secret_key = 'your-secret-key-change-this-in-production'
 
 DATABASE_NAME = 'reminders.db'
 LOANS_API_URL = 'http://172.19.28.7:5006/api/active_loans'
+SCHEDULE_API_URL = 'http://yavweb02:3001/api/schedule'
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# INTEGRATE api to show which week it is either A or B
+
 def get_active_loans():
     """
     Fetch active loans from API
@@ -33,15 +33,30 @@ def get_active_loans():
         logger.info(f"Successfully fetched {len(active_loans)} active loans")
         return active_loans
 
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching active loans: {e}")
+    except (requests.exceptions.RequestException, ValueError) as error:
+        logger.error(f"Error fetching active loans: {error}")
         return []
-    except ValueError as e:
-        logger.error(f"Error parsing JSON response from loans API: {e}")
-        return []
-    except Exception as e:
-        logger.error(f"Unexpected error fetching active loans: {e}")
-        return []
+
+
+def get_schedule_info():
+    """
+    Fetch current schedule info from API
+    Returns dict with period and week info or None if API fails
+    """
+    try:
+        logger.info(f"Fetching schedule info from {SCHEDULE_API_URL}")
+        response = requests.get(SCHEDULE_API_URL, timeout=5)
+        response.raise_for_status()
+
+        data = response.json()
+
+        logger.info(
+            f"Successfully fetched schedule info: Period {data.get('current_period')} Week {data.get('week_type')}")
+        return data
+
+    except (requests.exceptions.RequestException, ValueError) as error:
+        logger.error(f"Error fetching schedule info: {error}")
+        return None
 
 
 def parse_loan_string(loan_string):
@@ -49,25 +64,18 @@ def parse_loan_string(loan_string):
     Parse loan string to extract student name and item
     """
     try:
-        # Find the LAST occurrence of '(' for the days
-        # This handles student names with parentheses
         last_paren_index = loan_string.rfind('(')
 
         if last_paren_index != -1 and ')' in loan_string[last_paren_index:]:
-            # Extract days from the last parentheses: (0d), (6d), etc.
             closing_paren = loan_string.rfind(')')
             days = loan_string[last_paren_index + 1:closing_paren]
-
-            # Remove ONLY the days part, keeping student name parentheses
             clean_string = loan_string[:last_paren_index].strip()
         else:
-            # No days found
             days = ""
             clean_string = loan_string.strip()
 
-        # Split by ' - ' to separate student and item
         if ' - ' in clean_string:
-            parts = clean_string.split(' - ', 1)  # Split only on first ' - '
+            parts = clean_string.split(' - ', 1)
             student = parts[0].strip()
             item = parts[1].strip()
 
@@ -76,17 +84,15 @@ def parse_loan_string(loan_string):
                 "item": item,
                 "days": days
             }
-        else:
-            # Format doesn't match expected pattern
-            return {
-                "student": clean_string if clean_string else "Unknown",
-                "item": "Unknown",
-                "days": days
-            }
 
-    except Exception as e:
-        # Fallback for any parsing errors
-        logger.error(f"Error parsing loan string '{loan_string}': {e}")
+        return {
+            "student": clean_string if clean_string else "Unknown",
+            "item": "Unknown",
+            "days": days
+        }
+
+    except Exception as error:
+        logger.error(f"Error parsing loan string '{loan_string}': {error}")
         return {
             "student": loan_string,
             "item": "Unknown",
@@ -101,13 +107,11 @@ def format_loans_for_display(active_loans):
     formatted_loans = []
 
     for loan in active_loans:
-        # Parse the loan string to extract components
         parsed_loan = parse_loan_string(loan)
 
-        # TITLE USES DIRECT API OUTPUT
         loan_item = {
             'id': f'loan_{len(formatted_loans)}',
-            'title': loan,  # DIRECT API OUTPUT
+            'title': loan,
             'description': None,
             'location': None,
             'time': None,
@@ -118,7 +122,7 @@ def format_loans_for_display(active_loans):
             'student': parsed_loan['student'],
             'item': parsed_loan['item'],
             'days': parsed_loan['days'],
-            'original': loan  #original for reference
+            'original': loan
         }
         formatted_loans.append(loan_item)
 
@@ -131,10 +135,9 @@ def get_next_working_day():
     If today is Friday, return Monday or return tomorrow.
     """
     today = datetime.now()
-    if today.weekday() == 4:  # Friday (0=Monday, 4=Friday)
-        return today + timedelta(days=3)  # Skip to Monday
-    else:
-        return today + timedelta(days=1)  # Normal next day
+    if today.weekday() == 4:
+        return today + timedelta(days=3)
+    return today + timedelta(days=1)
 
 
 def get_next_working_day_name():
@@ -142,10 +145,9 @@ def get_next_working_day_name():
     Get the display name for the next working day
     """
     today = datetime.now()
-    if today.weekday() == 4:  # Friday
+    if today.weekday() == 4:
         return "Monday"
-    else:
-        return "Tomorrow"
+    return "Tomorrow"
 
 
 def is_weekend(date_str):
@@ -154,8 +156,8 @@ def is_weekend(date_str):
     """
     try:
         date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-        return date_obj.weekday() >= 5  # Saturday=5, Sunday=6
-    except:
+        return date_obj.weekday() >= 5
+    except ValueError:
         return False
 
 
@@ -172,12 +174,13 @@ def is_monday(date_str):
     """
     try:
         date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-        return date_obj.weekday() == 0  # Monday=0
-    except:
+        return date_obj.weekday() == 0
+    except ValueError:
         return False
 
 
 def get_db_connection():
+    """Get database connection"""
     try:
         connection = sqlite3.connect(DATABASE_NAME)
         connection.row_factory = sqlite3.Row
@@ -195,16 +198,13 @@ def parse_time_safely(time_str):
         return None
 
     try:
-        # Try HH:MM:SS format first
         time_obj = datetime.strptime(time_str, '%H:%M:%S').time()
         return time_obj
     except ValueError:
         try:
-            # Try HH:MM format (from HTML input)
             time_obj = datetime.strptime(time_str, '%H:%M').time()
             return time_obj
         except ValueError:
-            # If both fail, return None
             return None
 
 
@@ -215,11 +215,11 @@ def format_time_for_display(time_str):
     time_obj = parse_time_safely(time_str)
     if time_obj:
         return time_obj.strftime('%I:%M %p')
-    else:
-        return 'All Day'
+    return 'All Day'
 
 
 def get_reminders_for_date(date_str):
+    """Get reminders for a specific date"""
     connection = get_db_connection()
     if not connection:
         return []
@@ -233,15 +233,11 @@ def get_reminders_for_date(date_str):
             CASE WHEN time IS NULL THEN '23:59:59' ELSE time END
         ''', (date_str,))
 
-        # Format reminders for display
         reminders = []
         for row in cursor.fetchall():
             reminder = dict(row)
-
-            # Format time for display
             reminder['time_display'] = format_time_for_display(reminder['time'])
-            reminder['is_loan'] = False  # Flag to identify reminders vs loans
-
+            reminder['is_loan'] = False
             reminders.append(reminder)
 
         return reminders
@@ -251,6 +247,14 @@ def get_reminders_for_date(date_str):
         return []
     finally:
         connection.close()
+
+
+def get_sort_key(reminder):
+    """Helper function to get sort key for reminders"""
+    time_value = reminder.get('time')
+    if time_value is None:
+        time_value = '23:59:59'
+    return reminder['date'], time_value
 
 
 def get_all_reminders_organized():
@@ -273,36 +277,25 @@ def get_all_reminders_organized():
         current_reminders = []
         old_reminders = []
 
-        # Format reminders for display and categorize
         for row in cursor.fetchall():
             reminder = dict(row)
-
-            # Parse the reminder date
             reminder_date = datetime.strptime(reminder['date'], '%Y-%m-%d').date()
-
-            # Format time for display using the safe function
             reminder['time_display'] = format_time_for_display(reminder['time'])
 
-            # Format date for display
             date_obj = datetime.strptime(reminder['date'], '%Y-%m-%d')
             reminder['date_display'] = date_obj.strftime('%a, %b %d')
 
-            # Add flags for special highlighting
             reminder['is_weekend'] = is_weekend(reminder['date'])
             reminder['is_monday_next_working_day'] = is_monday(reminder['date']) and is_today_friday()
-            reminder['is_loan'] = False  # Flag to identify reminders vs loans
+            reminder['is_loan'] = False
 
-            # Categorize reminders
             if reminder_date >= today:
                 current_reminders.append(reminder)
             else:
                 old_reminders.append(reminder)
 
-        # Sort current reminders by date ASC, then by time
-        current_reminders.sort(key=lambda x: (x['date'], x['time'] or '23:59:59'))
-
-        # Sort old reminders by date DESC (most recent first), then by time
-        old_reminders.sort(key=lambda x: (x['date'], x['time'] or '23:59:59'), reverse=True)
+        current_reminders.sort(key=get_sort_key)
+        old_reminders.sort(key=get_sort_key, reverse=True)
 
         return {
             'current_reminders': current_reminders,
@@ -321,7 +314,6 @@ def calculate_pagination_info(today_reminders, tomorrow_reminders, active_loans=
     Calculate how many screens are needed and organize reminders accordingly
     Now includes active loans in today's items
     """
-    # Combine today's reminders with active loans
     today_items = today_reminders[:]
     if active_loans:
         today_items.extend(active_loans)
@@ -329,7 +321,6 @@ def calculate_pagination_info(today_reminders, tomorrow_reminders, active_loans=
     total_items = len(today_items) + len(tomorrow_reminders)
 
     if total_items <= max_per_screen:
-        # All fit on one screen
         return {
             'needs_pagination': False,
             'total_screens': 1,
@@ -339,7 +330,6 @@ def calculate_pagination_info(today_reminders, tomorrow_reminders, active_loans=
             }]
         }
 
-    # Need pagination
     screens = []
     remaining_today = today_items[:]
     remaining_tomorrow = tomorrow_reminders[:]
@@ -349,12 +339,10 @@ def calculate_pagination_info(today_reminders, tomorrow_reminders, active_loans=
         screen_tomorrow = []
         screen_count = 0
 
-        # Fill screen with today's items first (reminders + loans)
         while remaining_today and screen_count < max_per_screen:
             screen_today.append(remaining_today.pop(0))
             screen_count += 1
 
-        # Fill remaining space with tomorrow's reminders
         while remaining_tomorrow and screen_count < max_per_screen:
             screen_tomorrow.append(remaining_tomorrow.pop(0))
             screen_count += 1
@@ -371,8 +359,6 @@ def calculate_pagination_info(today_reminders, tomorrow_reminders, active_loans=
     }
 
 
-# ✅ ROUTES START HERE - NO INDENTATION!
-
 @app.route('/')
 def manage_reminders_root():
     """
@@ -385,9 +371,8 @@ def manage_reminders_root():
 def tv_display():
     """
     TV display moved to /display route
-    Now includes active loans integration with days preserved
+    Now includes active loans integration with days preserved and schedule API
     """
-    # Get current date and calculate next working day
     today = datetime.now()
     next_working_day = get_next_working_day()
     next_day_name = get_next_working_day_name()
@@ -395,15 +380,12 @@ def tv_display():
     today_str = today.strftime('%Y-%m-%d')
     next_working_day_str = next_working_day.strftime('%Y-%m-%d')
 
-    # Get reminders for both days
     today_reminders = get_reminders_for_date(today_str)
     next_day_reminders = get_reminders_for_date(next_working_day_str)
 
-    # Get active loans and format them for display (preserves days)
     active_loans_raw = get_active_loans()
     active_loans_formatted = format_loans_for_display(active_loans_raw)
 
-    # Calculate pagination info including loans
     pagination_info = calculate_pagination_info(
         today_reminders,
         next_day_reminders,
@@ -411,13 +393,16 @@ def tv_display():
         max_per_screen=7
     )
 
-    # Create time information dictionary
+    schedule_info = get_schedule_info()
+
     time_info = {
-        'display_date': today.strftime('%A, %B %d, %Y'),
-        'current_time': today.strftime('%I:%M %p')
+        'display_date': today.strftime('%a %d %b'),
+        'current_time': today.strftime('%H:%M'),
+        'current_period': schedule_info.get('current_period') if schedule_info else None,
+        'week_type': schedule_info.get('week_type') if schedule_info else None,
+        'has_schedule': schedule_info is not None
     }
 
-    # Pass pagination info and next day name to template
     return render_template('index.html',
                            time_info=time_info,
                            pagination_info=pagination_info,
@@ -431,103 +416,85 @@ def manage_reminders():
     Management page with organized reminders (current vs old) and loan viewing
     """
     if request.method == 'POST':
+        action = request.form.get('action', 'add')
+        form_reminder_id = request.form.get('reminder_id')
+        date = request.form.get('date')
+        time = request.form.get('time')
+        title = request.form.get('title')
+        description = request.form.get('description')
+        location = request.form.get('location')
+
+        if not date:
+            flash('Date is required!', 'error')
+            return redirect(url_for('manage_reminders'))
+
+        if not title or not title.strip():
+            flash('Title is required!', 'error')
+            return redirect(url_for('manage_reminders'))
+
+        if is_weekend(date):
+            flash('Cannot schedule reminders on weekends! Please choose a weekday.', 'error')
+            return redirect(url_for('manage_reminders'))
+
         try:
-            # Get action type (add or edit)
-            action = request.form.get('action', 'add')
-
-            # Get form data
-            reminder_id = request.form.get('reminder_id')  # Only for edit
-            date = request.form.get('date')
-            time = request.form.get('time')
-            title = request.form.get('title')
-            description = request.form.get('description')
-            location = request.form.get('location')
-
-            # Enhanced validation
-            if not date:
-                flash('Date is required!', 'error')
+            reminder_date = datetime.strptime(date, '%Y-%m-%d').date()
+            today_date = datetime.now().date()
+            if reminder_date < today_date:
+                flash('Cannot schedule reminders in the past!', 'error')
                 return redirect(url_for('manage_reminders'))
+        except ValueError:
+            flash('Invalid date format!', 'error')
+            return redirect(url_for('manage_reminders'))
 
-            if not title or not title.strip():
-                flash('Title is required!', 'error')
-                return redirect(url_for('manage_reminders'))
-
-            # Check if date is a weekend
-            if is_weekend(date):
-                flash('Cannot schedule reminders on weekends! Please choose a weekday.', 'error')
-                return redirect(url_for('manage_reminders'))
-
-            # Check if date is in the past (except for today)
+        if time:
             try:
-                reminder_date = datetime.strptime(date, '%Y-%m-%d').date()
-                today_date = datetime.now().date()
-                if reminder_date < today_date:
-                    flash('Cannot schedule reminders in the past!', 'error')
-                    return redirect(url_for('manage_reminders'))
+                time_obj = datetime.strptime(time, '%H:%M').time()
+                time = time_obj.strftime('%H:%M:%S')
             except ValueError:
-                flash('Invalid date format!', 'error')
+                flash('Invalid time format!', 'error')
                 return redirect(url_for('manage_reminders'))
 
-            # Validate time format if provided
-            if time:
-                try:
-                    time_obj = datetime.strptime(time, '%H:%M').time()
-                    time = time_obj.strftime('%H:%M:%S')
-                except ValueError:
-                    flash('Invalid time format!', 'error')
-                    return redirect(url_for('manage_reminders'))
+        time = time if time else None
+        description = description.strip() if description else None
+        location = location.strip() if location else None
+        title = title.strip()
 
-            # Convert empty strings to None for database
-            time = time if time else None
-            description = description.strip() if description else None
-            location = location.strip() if location else None
-            title = title.strip()
+        conn = get_db_connection()
+        if not conn:
+            flash('Database connection failed!', 'error')
+            return redirect(url_for('manage_reminders'))
 
-            # Process based on action
-            connection = get_db_connection()
-            if not connection:
-                flash('Database connection failed!', 'error')
-                return redirect(url_for('manage_reminders'))
+        try:
+            cur = conn.cursor()
 
-            try:
-                cursor = connection.cursor()
+            if action == 'edit' and form_reminder_id:
+                cur.execute('''
+                UPDATE reminders 
+                SET date=?, time=?, title=?, description=?, location=?
+                WHERE id=?
+                ''', (date, time, title, description, location, form_reminder_id))
 
-                if action == 'edit' and reminder_id:
-                    cursor.execute('''
-                    UPDATE reminders 
-                    SET date=?, time=?, title=?, description=?, location=?
-                    WHERE id=?
-                    ''', (date, time, title, description, location, reminder_id))
-
-                    if cursor.rowcount > 0:
-                        flash('Reminder updated successfully!', 'success')
-                    else:
-                        flash('Reminder not found!', 'error')
-
+                if cur.rowcount > 0:
+                    flash('Reminder updated successfully!', 'success')
                 else:
-                    cursor.execute('''
-                    INSERT INTO reminders (date, time, title, description, location)
-                    VALUES (?, ?, ?, ?, ?)
-                    ''', (date, time, title, description, location))
+                    flash('Reminder not found!', 'error')
+            else:
+                cur.execute('''
+                INSERT INTO reminders (date, time, title, description, location)
+                VALUES (?, ?, ?, ?, ?)
+                ''', (date, time, title, description, location))
+                flash('Reminder added successfully!', 'success')
 
-                    flash('Reminder added successfully!', 'success')
+            conn.commit()
 
-                connection.commit()
-
-            except sqlite3.Error as error:
-                flash(f'Database error: {str(error)}', 'error')
-            finally:
-                connection.close()
-
-        except Exception as error:
-            flash(f'An unexpected error occurred: {str(error)}', 'error')
+        except sqlite3.Error as error:
+            flash(f'Database error: {str(error)}', 'error')
+        finally:
+            conn.close()
 
         return redirect(url_for('manage_reminders'))
 
-    # GET request - show management interface with organized reminders and loans
     reminders_data = get_all_reminders_organized()
-
-    # Get active loans for display in manage page (with days preserved)
     active_loans_raw = get_active_loans()
     active_loans_formatted = []
 
@@ -537,7 +504,7 @@ def manage_reminders():
             'student': parsed['student'],
             'item': parsed['item'],
             'days': parsed['days'],
-            'original': loan  # Full string with days: "T Student - Card Reader (5d)"
+            'original': loan
         })
 
     context = {
@@ -556,31 +523,29 @@ def get_reminder(reminder_id):
     """
     API endpoint to get reminder data for editing
     """
-    connection = get_db_connection()
-    if not connection:
+    conn = get_db_connection()
+    if not conn:
         return jsonify({'error': 'Database connection failed'}), 500
 
     try:
-        cursor = connection.cursor()
-        cursor.execute('SELECT * FROM reminders WHERE id = ?', (reminder_id,))
-        reminder = cursor.fetchone()
+        cur = conn.cursor()
+        cur.execute('SELECT * FROM reminders WHERE id = ?', (reminder_id,))
+        reminder_row = cur.fetchone()
 
-        if reminder:
-            reminder_dict = dict(reminder)
-            # Convert time format for HTML input (HH:MM:SS to HH:MM)
+        if reminder_row:
+            reminder_dict = dict(reminder_row)
             if reminder_dict['time']:
                 time_obj = parse_time_safely(reminder_dict['time'])
                 if time_obj:
                     reminder_dict['time'] = time_obj.strftime('%H:%M')
-
             return jsonify(reminder_dict)
-        else:
-            return jsonify({'error': 'Reminder not found'}), 404
+
+        return jsonify({'error': 'Reminder not found'}), 404
 
     except sqlite3.Error as error:
         return jsonify({'error': str(error)}), 500
     finally:
-        connection.close()
+        conn.close()
 
 
 @app.route('/delete/<int:reminder_id>')
@@ -588,17 +553,17 @@ def delete_reminder(reminder_id):
     """
     Delete a reminder
     """
-    connection = get_db_connection()
-    if not connection:
+    conn = get_db_connection()
+    if not conn:
         flash('Database connection failed', 'error')
         return redirect(url_for('manage_reminders'))
 
     try:
-        cursor = connection.cursor()
-        cursor.execute('DELETE FROM reminders WHERE id = ?', (reminder_id,))
-        connection.commit()
+        cur = conn.cursor()
+        cur.execute('DELETE FROM reminders WHERE id = ?', (reminder_id,))
+        conn.commit()
 
-        if cursor.rowcount > 0:
+        if cur.rowcount > 0:
             flash('Reminder deleted successfully!', 'success')
         else:
             flash('Reminder not found!', 'error')
@@ -606,15 +571,16 @@ def delete_reminder(reminder_id):
     except sqlite3.Error as error:
         flash(f'Database error: {error}', 'error')
     finally:
-        connection.close()
+        conn.close()
 
     return redirect(url_for('manage_reminders'))
 
 
 if __name__ == '__main__':
-    print("Starting TV Reminders System with Loans Integration...")
+    print("Starting TV Reminders System with Loans and Schedule Integration...")
     print("Management (Default): http://localhost:5005")
     print("TV Display: http://localhost:5005/display")
     print("Management: http://localhost:5005/manage")
     print(f"Loans API: {LOANS_API_URL}")
+    print(f"Schedule API: {SCHEDULE_API_URL}")
     app.run(debug=True, host='0.0.0.0', port=5005)
