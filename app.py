@@ -16,7 +16,7 @@ LOANS_API_URL = 'http://172.19.28.7:5006/api/active_loans'
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
+# INTEGRATE api to show which week it is either A or B
 def get_active_loans():
     """
     Fetch active loans from API
