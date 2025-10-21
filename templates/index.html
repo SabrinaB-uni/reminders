@@ -288,7 +288,7 @@
                         <span class="banner-time">{{ time_info.current_time }}</span>
                         {% if time_info.has_schedule %}
                             <span class="banner-separator">-</span>
-                            <span class="banner-period">Period: {{ time_info.current_period }} ({{ time_info.week_type }})</span>
+                            <span class="banner-period" id="period-toggle">Period: {{ time_info.current_period }} ({{ time_info.week_type }})</span>
                         {% endif %}
                     </div>
                 {% endif %}
@@ -409,7 +409,32 @@
             {% if loans_count %}
                 console.log('Active loans detected: {{ loans_count }}');
             {% endif %}
+
+            // CHANGE #2: Period toggle functionality
+            {% if time_info and time_info.has_schedule %}
+            const periodElement = document.getElementById('period-toggle');
+            if (periodElement) {
+                const currentPeriod = "{{ time_info.current_period }}";
+                const weekType = "{{ time_info.week_type }}";
+
+                const messages = [
+                    `Period: ${currentPeriod} (${weekType})`,
+                    "Next: Bre 11:05"  // Hardcoded for testing
+                ];
+                let messageIndex = 0;
+
+                setInterval(() => {
+                    messageIndex = (messageIndex + 1) % messages.length;
+                    periodElement.textContent = messages[messageIndex];
+                }, 3000);
+            }
+            {% endif %}
         });
+    </script>
+
+    <!-- CHANGE #3: DEBUG - Remove after testing -->
+    <script>
+        console.log("Time info:", {{ time_info | tojson | safe }});
     </script>
 
 </body>
