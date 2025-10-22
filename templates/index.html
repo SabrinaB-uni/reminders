@@ -79,6 +79,37 @@
             padding: 5px 20px;
             border-radius: 8px;
             font-size: 50px !important;
+            transition: all 0.3s ease;
+        }
+
+        .banner-period.next-period {
+            color: #0066cc;
+            background-color: #e3f2fd;
+        }
+
+        /* API Status Indicator */
+        .api-status {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 1000;
+            display: none;
+        }
+
+        .api-status.connected {
+            background-color: #4caf50;
+            color: white;
+            display: block;
+        }
+
+        .api-status.disconnected {
+            background-color: #f44336;
+            color: white;
+            display: block;
         }
 
         .time-section {
@@ -160,7 +191,6 @@
             border-left-color: #000080;
         }
 
-        /* Updated: Light orange loan styling */
         .reminder-line.loan {
             background-color: #ffebcc;
             border-left-color: #ff9933;
@@ -176,7 +206,6 @@
             flex-shrink: 0;
         }
 
-        /* Updated: Light orange loan time styling */
         .reminder-time.loan-time {
             color: #cc6600;
             font-weight: bold;
@@ -201,7 +230,6 @@
             text-overflow: ellipsis;
         }
 
-        /* Updated: Light orange loan title styling */
         .reminder-title.loan-title {
             color: #cc6600;
             font-weight: bold;
@@ -253,7 +281,6 @@
             display: block;
         }
 
-        /* Updated: Light orange loans indicator */
         .loans-indicator {
             position: fixed;
             top: 10px;
@@ -277,6 +304,7 @@
 
     <div class="tv-container">
 
+
         <div class="tv-top-section">
             <div class="main-title">Reminders</div>
 
@@ -286,9 +314,11 @@
                         <span class="banner-date">{{ time_info.display_date }}</span>
                         <span class="banner-separator">-</span>
                         <span class="banner-time">{{ time_info.current_time }}</span>
-                        {% if time_info.has_schedule %}
+                        {% if time_info.has_schedule and time_info.current_period %}
                             <span class="banner-separator">-</span>
-                            <span class="banner-period" id="period-toggle">Period: {{ time_info.current_period }} ({{ time_info.week_type }})</span>
+                            <span class="banner-period" id="period-toggle">
+                                {{ time_info.current_period }} ({{ time_info.week_type }})
+                            </span>
                         {% endif %}
                     </div>
                 {% endif %}
@@ -375,7 +405,17 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Console logging for debugging
+            console.log("=== TIME-BASED SCHEDULE DEBUG INFO ===");
+            console.log("Time info received:", {{ time_info | tojson | safe }});
+            console.log("Current Period (from time):", "{{ time_info.current_period if time_info and time_info.current_period else 'none' }}");
+            console.log("Next Period:", "{{ time_info.next_period if time_info and time_info.next_period else 'none' }}");
+            console.log("Next Period Time:", "{{ time_info.next_period_time if time_info and time_info.next_period_time else 'none' }}");
+            console.log("Week Type (from API):", "{{ time_info.week_type if time_info and time_info.week_type else 'none' }}");
+            console.log("======================================");
+
             {% if pagination_info.needs_pagination %}
+            // Pagination functionality
             const totalScreens = {{ pagination_info.total_screens }};
             let currentScreen = 1;
             const screens = document.querySelectorAll('.screen');
@@ -410,32 +450,72 @@
                 console.log('Active loans detected: {{ loans_count }}');
             {% endif %}
 
-            // CHANGE #2: Period toggle functionality
-            {% if time_info and time_info.has_schedule %}
+            // Period toggle functionality - TIME-BASED with next period time
+            {% if time_info and time_info.has_schedule and time_info.current_period and time_info.next_period %}
             const periodElement = document.getElementById('period-toggle');
             if (periodElement) {
                 const currentPeriod = "{{ time_info.current_period }}";
-                const weekType = "{{ time_info.week_type }}";
+                const nextPeriod = "{{ time_info.next_period }}";
+                const nextPeriodTime = "{{ time_info.next_period_time if time_info.next_period_time else '' }}";
+                const weekType = "{{ time_info.week_type if time_info.week_type else '' }}";
+
+                console.log("✓ Period toggle initialized (TIME-BASED):", {
+                    current: currentPeriod,
+                    next: nextPeriod,
+                    nextTime: nextPeriodTime,
+                    week: weekType
+                });
+
+                // Build the next period display text
+                let nextPeriodText = "Next: " + nextPeriod;
+                if (nextPeriodTime) {
+                    nextPeriodText += " " + nextPeriodTime;
+                }
 
                 const messages = [
-                    `Period: ${currentPeriod} (${weekType})`,
-                    "Next: Bre 11:05"  // Hardcoded for testing
+                    {
+                        text: weekType ? `${currentPeriod} (${weekType})` : currentPeriod,
+                        isNext: false
+                    },
+                    {
+                        text: nextPeriodText,
+                        isNext: true
+                    }
                 ];
                 let messageIndex = 0;
 
+                // Update display function
+                function updatePeriodDisplay() {
+                    const currentMessage = messages[messageIndex];
+                    periodElement.textContent = currentMessage.text;
+
+                    // Toggle styling for next period
+                    if (currentMessage.isNext) {
+                        periodElement.classList.add('next-period');
+                    } else {
+                        periodElement.classList.remove('next-period');
+                    }
+
+                    console.log(`Period display: ${currentMessage.text}`);
+                }
+
+                // Toggle every 3 seconds
                 setInterval(() => {
                     messageIndex = (messageIndex + 1) % messages.length;
-                    periodElement.textContent = messages[messageIndex];
+                    updatePeriodDisplay();
                 }, 3000);
+
+                // Initial display
+                updatePeriodDisplay();
+            } else {
+                console.error("✗ Period toggle element not found in DOM!");
             }
+            {% else %}
+                console.log("⚠ Period toggle not initialized - likely weekend or outside school hours");
             {% endif %}
         });
     </script>
 
-    <!-- CHANGE #3: DEBUG - Remove after testing -->
-    <script>
-        console.log("Time info:", {{ time_info | tojson | safe }});
-    </script>
-
 </body>
 </html>
+

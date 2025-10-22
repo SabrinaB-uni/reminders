@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import requests
 import logging
 
@@ -15,6 +15,176 @@ SCHEDULE_API_URL = 'http://yavweb02:3001/api/schedule'
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# School timetable structure with times (Monday-Thursday)
+WEEKDAY_SCHEDULE = [
+    {'name': 'FT', 'start': time(8, 30), 'end': time(8, 55)},
+    {'name': 'Period 1', 'start': time(8, 55), 'end': time(10, 0)},
+    {'name': 'Period 2', 'start': time(10, 0), 'end': time(11, 5)},
+    {'name': 'Break', 'start': time(11, 5), 'end': time(11, 25)},
+    {'name': 'Period 3', 'start': time(11, 25), 'end': time(12, 30)},
+    {'name': 'Lunch', 'start': time(12, 30), 'end': time(13, 10)},
+    {'name': 'Period 4', 'start': time(13, 10), 'end': time(14, 15)},
+    {'name': 'Mincha', 'start': time(14, 15), 'end': time(14, 30)},
+    {'name': 'Period 5', 'start': time(14, 30), 'end': time(15, 35)},
+]
+
+# Friday schedule
+FRIDAY_SCHEDULE = [
+    {'name': 'FT', 'start': time(8, 30), 'end': time(8, 40)},
+    {'name': 'Period 1', 'start': time(8, 40), 'end': time(9, 45)},
+    {'name': 'Period 2', 'start': time(9, 45), 'end': time(10, 50)},
+    {'name': 'Break', 'start': time(10, 50), 'end': time(11, 20)},
+    {'name': 'Period 3', 'start': time(11, 20), 'end': time(12, 25)},
+    {'name': 'Period 4', 'start': time(12, 25), 'end': time(13, 30)},
+]
+
+
+def get_current_period_from_time(current_time=None, is_friday=False):
+    """
+    Determine current period based on actual time
+    Returns dict with current_period, next_period, and next_period_time
+    """
+    if current_time is None:
+        current_time = datetime.now().time()
+
+    schedule = FRIDAY_SCHEDULE if is_friday else WEEKDAY_SCHEDULE
+
+    # Find current period
+    for i, period in enumerate(schedule):
+        if period['start'] <= current_time < period['end']:
+            # Found current period
+            current_period = period['name']
+
+            # Determine next period and its start time
+            if i < len(schedule) - 1:
+                next_period = schedule[i + 1]['name']
+                next_period_time = schedule[i + 1]['start'].strftime('%H:%M')
+            else:
+                next_period = "End of Day"
+                next_period_time = None
+
+            logger.info(
+                f"Time {current_time.strftime('%H:%M')} -> Current: {current_period}, Next: {next_period} at {next_period_time}")
+            return {
+                'current_period': current_period,
+                'next_period': next_period,
+                'next_period_time': next_period_time,
+                'in_period': True
+            }
+
+    # Not in any period - determine before school, between periods, or after school
+    if current_time < schedule[0]['start']:
+        return {
+            'current_period': f"Before School",
+            'next_period': schedule[0]['name'],
+            'next_period_time': schedule[0]['start'].strftime('%H:%M'),
+            'in_period': False
+        }
+    elif current_time >= schedule[-1]['end']:
+        return {
+            'current_period': "After School",
+            'next_period': "End of Day",
+            'next_period_time': None,
+            'in_period': False
+        }
+    else:
+        # Between periods - find which gap
+        for i in range(len(schedule) - 1):
+            if schedule[i]['end'] <= current_time < schedule[i + 1]['start']:
+                return {
+                    'current_period': f"Between {schedule[i]['name']} and {schedule[i + 1]['name']}",
+                    'next_period': schedule[i + 1]['name'],
+                    'next_period_time': schedule[i + 1]['start'].strftime('%H:%M'),
+                    'in_period': False
+                }
+
+    return {
+        'current_period': "Unknown",
+        'next_period': "Unknown",
+        'next_period_time': None,
+        'in_period': False
+    }
+
+
+def get_week_type_from_api():
+    """
+    Fetch week type (A/B) from API
+    Returns week type string or None if API fails
+    """
+    try:
+        logger.info(f"Fetching week type from {SCHEDULE_API_URL}")
+        response = requests.get(SCHEDULE_API_URL, timeout=5)
+        response.raise_for_status()
+
+        data = response.json()
+        week_type = data.get('week_type', 'B')  # Default to B if not specified
+
+        # Normalize week type
+        if week_type:
+            week_str = str(week_type).strip().upper()
+            if week_str in ['A', 'B']:
+                week_type = f"Week {week_str}"
+            elif not week_str.startswith('Week'):
+                week_type = f"Week {week_str}"
+
+        logger.info(f"✓ Week type from API: {week_type}")
+        return week_type
+
+    except (requests.exceptions.RequestException, ValueError) as error:
+        logger.warning(f"⚠ Could not fetch week type from API: {error}")
+        return "Week B"  # Default fallback
+
+
+def get_schedule_info():
+    """
+    Get complete schedule info:
+    - Current period based on time
+    - Next period and its start time
+    - Week type from API
+    """
+    now = datetime.now()
+    is_friday = now.weekday() == 4
+    is_weekend = now.weekday() >= 5
+
+    # Weekend handling
+    if is_weekend:
+        # Find Monday's first period
+        monday_schedule = WEEKDAY_SCHEDULE[0]
+        return {
+            'current_period': 'Weekend',
+            'next_period': f"Monday {monday_schedule['name']}",
+            'next_period_time': monday_schedule['start'].strftime('%H:%M'),
+            'week_type': None,
+            'is_friday': False,
+            'is_weekend': True,
+            'schedule': []
+        }
+
+    # Get current period from time
+    period_info = get_current_period_from_time(now.time(), is_friday)
+
+    # Get week type from API
+    week_type = get_week_type_from_api()
+
+    # Build complete schedule info
+    schedule_data = {
+        'current_period': period_info['current_period'],
+        'next_period': period_info['next_period'],
+        'next_period_time': period_info['next_period_time'],
+        'week_type': week_type,
+        'is_friday': is_friday,
+        'is_weekend': False,
+        'in_period': period_info['in_period'],
+        'schedule': FRIDAY_SCHEDULE if is_friday else WEEKDAY_SCHEDULE
+    }
+
+    logger.info(
+        f"✓ Schedule: {schedule_data['current_period']} → {schedule_data['next_period']} "
+        f"at {schedule_data['next_period_time']} ({schedule_data['week_type']}, {'Friday' if is_friday else 'Weekday'})"
+    )
+
+    return schedule_data
 
 
 def get_active_loans():
@@ -36,27 +206,6 @@ def get_active_loans():
     except (requests.exceptions.RequestException, ValueError) as error:
         logger.error(f"Error fetching active loans: {error}")
         return []
-
-
-def get_schedule_info():
-    """
-    Fetch current schedule info from API
-    Returns dict with period and week info or None if API fails
-    """
-    try:
-        logger.info(f"Fetching schedule info from {SCHEDULE_API_URL}")
-        response = requests.get(SCHEDULE_API_URL, timeout=5)
-        response.raise_for_status()
-
-        data = response.json()
-
-        logger.info(
-            f"Successfully fetched schedule info: Period {data.get('current_period')} Week {data.get('week_type')}")
-        return data
-
-    except (requests.exceptions.RequestException, ValueError) as error:
-        logger.error(f"Error fetching schedule info: {error}")
-        return None
 
 
 def parse_loan_string(loan_string):
@@ -370,8 +519,7 @@ def manage_reminders_root():
 @app.route('/display')
 def tv_display():
     """
-    TV display moved to /display route
-    Now includes active loans integration with days preserved and schedule API
+    TV display - determines period from time, week type from API
     """
     today = datetime.now()
     next_working_day = get_next_working_day()
@@ -380,12 +528,15 @@ def tv_display():
     today_str = today.strftime('%Y-%m-%d')
     next_working_day_str = next_working_day.strftime('%Y-%m-%d')
 
+    # Get reminders
     today_reminders = get_reminders_for_date(today_str)
     next_day_reminders = get_reminders_for_date(next_working_day_str)
 
+    # Get loans
     active_loans_raw = get_active_loans()
     active_loans_formatted = format_loans_for_display(active_loans_raw)
 
+    # Calculate pagination
     pagination_info = calculate_pagination_info(
         today_reminders,
         next_day_reminders,
@@ -393,15 +544,22 @@ def tv_display():
         max_per_screen=7
     )
 
+    # Get schedule info (period from time, week from API)
     schedule_info = get_schedule_info()
 
+    # Build time_info
     time_info = {
         'display_date': today.strftime('%a %d %b'),
         'current_time': today.strftime('%H:%M'),
-        'current_period': schedule_info.get('current_period') if schedule_info else None,
-        'week_type': schedule_info.get('week_type') if schedule_info else None,
-        'has_schedule': schedule_info is not None
+        'has_schedule': not schedule_info.get('is_weekend', False),
+        'current_period': schedule_info.get('current_period'),
+        'next_period': schedule_info.get('next_period'),
+        'next_period_time': schedule_info.get('next_period_time'),
+        'week_type': schedule_info.get('week_type')
     }
+
+    # Log what's being sent to template
+    logger.info(f"Sending to template - Time Info: {time_info}")
 
     return render_template('index.html',
                            time_info=time_info,
@@ -410,6 +568,36 @@ def tv_display():
                            loans_count=len(active_loans_raw))
 
 
+@app.route('/api/debug/schedule')
+def debug_schedule():
+    """
+    Debug endpoint to check schedule status
+    """
+    now = datetime.now()
+    is_friday = now.weekday() == 4
+    schedule_info = get_schedule_info()
+
+    return jsonify({
+        'current_time': now.strftime('%H:%M:%S'),
+        'current_day': now.strftime('%A'),
+        'is_friday': is_friday,
+        'schedule_info': schedule_info,
+        'weekday_schedule': [
+            {
+                'name': p['name'],
+                'start': p['start'].strftime('%H:%M'),
+                'end': p['end'].strftime('%H:%M')
+            } for p in WEEKDAY_SCHEDULE
+        ],
+        'friday_schedule': [
+            {
+                'name': p['name'],
+                'start': p['start'].strftime('%H:%M'),
+                'end': p['end'].strftime('%H:%M')
+            } for p in FRIDAY_SCHEDULE
+        ],
+        'api_url': SCHEDULE_API_URL
+    })
 @app.route('/manage', methods=['GET', 'POST'])
 def manage_reminders():
     """
@@ -419,7 +607,7 @@ def manage_reminders():
         action = request.form.get('action', 'add')
         form_reminder_id = request.form.get('reminder_id')
         date = request.form.get('date')
-        time = request.form.get('time')
+        time_val = request.form.get('time')
         title = request.form.get('title')
         description = request.form.get('description')
         location = request.form.get('location')
@@ -446,15 +634,15 @@ def manage_reminders():
             flash('Invalid date format!', 'error')
             return redirect(url_for('manage_reminders'))
 
-        if time:
+        if time_val:
             try:
-                time_obj = datetime.strptime(time, '%H:%M').time()
-                time = time_obj.strftime('%H:%M:%S')
+                time_obj = datetime.strptime(time_val, '%H:%M').time()
+                time_val = time_obj.strftime('%H:%M:%S')
             except ValueError:
                 flash('Invalid time format!', 'error')
                 return redirect(url_for('manage_reminders'))
 
-        time = time if time else None
+        time_val = time_val if time_val else None
         description = description.strip() if description else None
         location = location.strip() if location else None
         title = title.strip()
@@ -472,7 +660,7 @@ def manage_reminders():
                 UPDATE reminders 
                 SET date=?, time=?, title=?, description=?, location=?
                 WHERE id=?
-                ''', (date, time, title, description, location, form_reminder_id))
+                ''', (date, time_val, title, description, location, form_reminder_id))
 
                 if cur.rowcount > 0:
                     flash('Reminder updated successfully!', 'success')
@@ -482,7 +670,7 @@ def manage_reminders():
                 cur.execute('''
                 INSERT INTO reminders (date, time, title, description, location)
                 VALUES (?, ?, ?, ?, ?)
-                ''', (date, time, title, description, location))
+                ''', (date, time_val, title, description, location))
                 flash('Reminder added successfully!', 'success')
 
             conn.commit()
@@ -577,10 +765,22 @@ def delete_reminder(reminder_id):
 
 
 if __name__ == '__main__':
-    print("Starting TV Reminders System with Loans and Schedule Integration...")
-    print("Management (Default): http://localhost:5005")
-    print("TV Display: http://localhost:5005/display")
-    print("Management: http://localhost:5005/manage")
-    print(f"Loans API: {LOANS_API_URL}")
-    print(f"Schedule API: {SCHEDULE_API_URL}")
+    print("=" * 70)
+    print("Starting TV Reminders System - TIME-BASED SCHEDULE")
+    print("=" * 70)
+    print("📍 Management: http://localhost:5005")
+    print("📺 TV Display: http://localhost:5005/display")
+    print("🔍 Debug Schedule: http://localhost:5005/api/debug/schedule")
+    print("-" * 70)
+    print(f"💳 Loans API: {LOANS_API_URL}")
+    print(f"📅 Week Type API: {SCHEDULE_API_URL}")
+    print("-" * 70)
+    print("📋 Monday-Thursday Schedule:")
+    for period in WEEKDAY_SCHEDULE:
+        print(f"   {period['start'].strftime('%H:%M')}-{period['end'].strftime('%H:%M')}: {period['name']}")
+    print("-" * 70)
+    print("📋 Friday Schedule:")
+    for period in FRIDAY_SCHEDULE:
+        print(f"   {period['start'].strftime('%H:%M')}-{period['end'].strftime('%H:%M')}: {period['name']}")
+    print("=" * 70)
     app.run(debug=True, host='0.0.0.0', port=5005)
